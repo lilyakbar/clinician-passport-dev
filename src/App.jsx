@@ -27,6 +27,10 @@ import ResumeBuilder from '@/pages/ResumeBuilder';
 import ComplianceIntelligence from '@/pages/ComplianceIntelligence';
 import ProfileSettings from '@/pages/ProfileSettings';
 import RecordsPage from '@/pages/RecordsPage';
+import Passport from '@/pages/Passport';
+import CredentialsCE from '@/pages/CredentialsCE';
+import GoalsApplications from '@/pages/GoalsApplications';
+import CVResume from '@/pages/CVResume';
 import {
   careerHistoryConfig, educationConfig, researchConfig, publicationsConfig,
   presentationsConfig, volunteeringConfig, leadershipConfig, membershipConfig,
@@ -87,6 +91,10 @@ const AuthenticatedApp = () => {
           <Route path="/import-cv" element={<ImportCV />} />
           <Route path="/resume-builder" element={<ResumeBuilder />} />
           <Route path="/settings" element={<ProfileSettings />} />
+          <Route path="/passport" element={<Passport />} />
+          <Route path="/credentials-ce" element={<CredentialsCE />} />
+          <Route path="/career" element={<GoalsApplications />} />
+          <Route path="/cv-resume" element={<CVResume />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
