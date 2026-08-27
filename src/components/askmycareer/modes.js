@@ -1,0 +1,100 @@
+import {
+  History, ShieldCheck, Telescope, Globe, Link2, Stethoscope, BookMarked,
+} from "lucide-react";
+
+export const MODES = [
+  {
+    key: "history",
+    label: "Search My History",
+    icon: History,
+    description: "Ask natural-language questions across everything stored in your Passport.",
+    environment: "MY PASSPORT",
+    prompts: [
+      "Show every volunteer experience I completed between 2020 and 2024.",
+      "Find all research experiences related to endodontics.",
+      "Which publications have I recorded?",
+      "Show every presentation and poster I've ever given.",
+      "What did I accomplish professionally in 2026?",
+      "Show all leadership roles lasting longer than one year.",
+    ],
+  },
+  {
+    key: "credentials",
+    label: "Credential & Renewal",
+    icon: ShieldCheck,
+    description: "Combine your stored credentials with current official regulatory sources.",
+    environment: "BOTH",
+    prompts: [
+      "What credentials expire in the next 180 days?",
+      "Which of my credentials require action first?",
+      "What CE have I documented toward my current renewal period?",
+      "Which CE entries do not have certificates attached?",
+      "Compare the renewal requirements for my California dental license.",
+    ],
+  },
+  {
+    key: "career_lens",
+    label: "Career Lens",
+    icon: Telescope,
+    description: "Organize your entire history around a specific professional goal.",
+    environment: "MY PASSPORT",
+    prompts: [
+      "I graduated four years ago and want to apply for an endodontics residency. Find everything relevant.",
+      "I need an academic CV — organize my experience.",
+      "I'm applying for a faculty position. What in my history is relevant?",
+      "Create source material for a conference speaker biography.",
+      "I'm applying for a volunteer leadership position.",
+    ],
+  },
+  {
+    key: "live_opportunities",
+    label: "Live Opportunities",
+    icon: Globe,
+    description: "Find current external opportunities from authoritative web sources.",
+    environment: "LIVE SOURCE",
+    prompts: [
+      "Find dental volunteer opportunities in NYC during the next two months.",
+      "Find in-person endodontic CE within 50 miles of me.",
+      "Find upcoming healthcare AI events in New York.",
+      "Find conferences related to pediatric dentistry next year.",
+      "Find mentorship programs relevant to my specialty interests.",
+    ],
+  },
+  {
+    key: "connect",
+    label: "Connect Internal + External",
+    icon: Link2,
+    description: "Link your goals and gaps to live opportunities that match.",
+    environment: "BOTH",
+    prompts: [
+      "I have a goal to volunteer quarterly but haven't logged activity recently. Find current opportunities.",
+      "My BLS expires soon — find upcoming recertification courses near me.",
+      "I want more endodontic CE. Find current courses that match my history.",
+    ],
+  },
+  {
+    key: "gap_detection",
+    label: "Passport Checkup",
+    icon: Stethoscope,
+    description: "Detect incomplete records and missing information in your Passport.",
+    environment: "MY PASSPORT",
+    prompts: [
+      "Which entries are missing dates?",
+      "Which experiences are missing hours?",
+      "Which CE courses don't have certificates attached?",
+      "Run a full Passport checkup and find record-quality issues.",
+    ],
+  },
+  {
+    key: "optimize_ce",
+    label: "Optimize My CE",
+    icon: BookMarked,
+    description: "Compare your documented CE against current multi-state license requirements.",
+    environment: "BOTH",
+    prompts: [
+      "I maintain New York and Georgia dental licenses. What CE do I still need, and where do requirements overlap?",
+      "What CE have I documented toward my New York dental license renewal?",
+      "Which of my documented CE courses may count toward more than one license?",
+    ],
+  },
+];

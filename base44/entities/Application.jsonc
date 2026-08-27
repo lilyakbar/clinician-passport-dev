@@ -1,0 +1,85 @@
+{
+  "name": "Application",
+  "type": "object",
+  "properties": {
+    "target_title": {
+      "type": "string"
+    },
+    "organization": {
+      "type": "string"
+    },
+    "position": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "drafting",
+        "submitted",
+        "interviewing",
+        "offered",
+        "rejected",
+        "withdrawn"
+      ],
+      "default": "drafting"
+    },
+    "applied_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "deadline": {
+      "type": "string",
+      "format": "date"
+    },
+    "cv_version": {
+      "type": "string"
+    },
+    "documents": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "target_title"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

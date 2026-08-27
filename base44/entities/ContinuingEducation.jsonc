@@ -1,0 +1,87 @@
+{
+  "name": "ContinuingEducation",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "ce_type": {
+      "type": "string"
+    },
+    "credits": {
+      "type": "number",
+      "default": 0
+    },
+    "completion_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "in_progress",
+        "planned"
+      ],
+      "default": "completed"
+    },
+    "certificate_url": {
+      "type": "string"
+    },
+    "profession": {
+      "type": "string",
+      "default": "dentistry"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "credits"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

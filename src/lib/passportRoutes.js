@@ -1,0 +1,41 @@
+// Maps Passport entity names to their app routes and human labels, used by
+// Ask My Career to link results directly to the underlying records.
+export const entityRoute = {
+  Credential: "/credentials",
+  ContinuingEducation: "/continuing-education",
+  CareerHistory: "/career-history",
+  Education: "/education",
+  Research: "/research",
+  Publication: "/publications",
+  Presentation: "/presentations",
+  Conference: "/conferences",
+  Volunteering: "/volunteering",
+  Leadership: "/leadership",
+  Membership: "/memberships",
+  Document: "/documents",
+  CareerGoal: "/goals",
+  Opportunity: "/opportunities",
+  Application: "/applications",
+  Reminder: "/reminders",
+  Profile: "/",
+};
+
+export const entityLabel = {
+  Credential: "Credential",
+  ContinuingEducation: "CE Course",
+  CareerHistory: "Employment",
+  Education: "Education",
+  Research: "Research",
+  Publication: "Publication",
+  Presentation: "Presentation",
+  Conference: "Conference",
+  Volunteering: "Volunteering",
+  Leadership: "Leadership",
+  Membership: "Membership",
+  Document: "Document",
+  CareerGoal: "Goal",
+  Opportunity: "Opportunity",
+  Application: "Application",
+  Reminder: "Reminder",
+  Profile: "Profile",
+};
