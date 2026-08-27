@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { Outlet, NavLink, Link } from "react-router-dom";
 import {
-  LayoutDashboard, Briefcase, GraduationCap, FlaskConical, BookOpen,
-  Presentation, HeartHandshake, Users, FileText, Target, Telescope,
-  Send, Award, BookMarked, Bell, Menu, X, Stethoscope, LogOut, User, Sparkles, CalendarDays, UploadCloud, ScrollText, ShieldCheck, Settings,
+  LayoutDashboard, FileText, Target, Menu, X, Stethoscope, LogOut, User,
+  Sparkles, Award, ScrollText, Settings,
 } from "lucide-react";
 import QuickCaptureButton from "@/components/quickcapture/QuickCaptureButton";
 import ProfessionSwitcher from "@/components/ProfessionSwitcher";
@@ -13,32 +12,20 @@ import { useProfession } from "@/professions/ProfessionContext";
 import { cn } from "@/lib/utils";
 
 const nav = [
-  { section: "Overview", items: [
+  { section: "Home", items: [
     { to: "/", label: "Home", icon: LayoutDashboard, end: true },
-    { to: "/ask-my-career", label: "Ask My Career", icon: Sparkles },
-    { to: "/import-cv", label: "Import CV / Resume", icon: UploadCloud },
-    { to: "/reminders", label: "Reminders", icon: Bell },
   ]},
   { section: "My Passport", items: [
-    { to: "/credentials", label: "Licenses & Credentials", icon: Award },
-    { to: "/continuing-education", label: "CE / CME", icon: BookMarked },
-    { to: "/compliance", label: "Compliance Intelligence", icon: ShieldCheck },
+    { to: "/passport", label: "Passport", icon: ScrollText },
+    { to: "/credentials-ce", label: "Credentials & CE", icon: Award },
     { to: "/documents", label: "Documents", icon: FileText },
-    { to: "/career-history", label: "Career History", icon: Briefcase },
-    { to: "/education", label: "Education", icon: GraduationCap },
-    { to: "/research", label: "Research", icon: FlaskConical },
-    { to: "/publications", label: "Publications", icon: BookOpen },
-    { to: "/presentations", label: "Presentations", icon: Presentation },
-    { to: "/conferences", label: "Conferences", icon: CalendarDays },
-    { to: "/volunteering", label: "Volunteering", icon: HeartHandshake },
-    { to: "/leadership", label: "Leadership", icon: Users },
-    { to: "/memberships", label: "Memberships", icon: Users },
   ]},
-  { section: "Career Advancement", items: [
-    { to: "/goals", label: "Goals", icon: Target },
-    { to: "/opportunities", label: "Opportunities", icon: Telescope },
-    { to: "/applications", label: "Applications", icon: Send },
-    { to: "/resume-builder", label: "Resume Builder", icon: ScrollText },
+  { section: "Career", items: [
+    { to: "/career", label: "Goals & Applications", icon: Target },
+    { to: "/cv-resume", label: "CV / Resume", icon: ScrollText },
+  ]},
+  { section: "Intelligence", items: [
+    { to: "/ask-my-career", label: "Ask My Career", icon: Sparkles },
   ]},
 ];
 
