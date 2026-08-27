@@ -59,8 +59,12 @@ export default function ImportCV() {
         const isProfile = key === "profile";
         const items = isProfile ? (data.extracted[key] ? [data.extracted[key]] : []) : (data.extracted[key] || []);
         items.forEach((_, i) => {
-          const state = isProfile ? "new" : (data.matches?.[key]?.[i]?.state || "new");
-          init[`${key}.${i}`] = DECISION_DEFAULT[state] || "import";
+          if (isProfile) {
+            init[`${key}.${i}`] = { action: profile?.id ? "update" : "create" };
+          } else {
+            const state = data.matches?.[key]?.[i]?.state || "new";
+            init[`${key}.${i}`] = DECISION_DEFAULT[state] || "import";
+          }
         });
       });
       setDecisions(init);
@@ -106,21 +110,35 @@ export default function ImportCV() {
     };
 
     try {
-      // Profile: update the existing Profile record (never create a duplicate).
-      if (decisions["profile.0"] && decisions["profile.0"] !== "skip" && extracted.profile) {
+      // Profile: one canonical Profile per user. Apply only selected changed fields;
+      // never overwrite a non-empty existing value with an empty extracted value.
+      const profDecision = decisions["profile.0"];
+      if (profDecision && profDecision.action !== "skip" && profDecision.action !== "keep" && extracted.profile) {
         const p = extracted.profile;
-        const merged = {};
-        PROFILE_FIELDS.forEach((f) => {
-          const v = p[f];
-          if (v !== undefined && v !== null && v !== "") merged[f] = v;
-        });
+        const hasVal = (v) => v !== undefined && v !== null && v !== "" && String(v).trim().toLowerCase() !== "not provided";
         if (profile?.id) {
-          await base44.entities.Profile.update(profile.id, merged);
+          const merged = {};
+          PROFILE_FIELDS.forEach((f) => {
+            const cvVal = p[f];
+            if (!hasVal(cvVal)) return;
+            if (profDecision.fields && f in profDecision.fields && !profDecision.fields[f]) return;
+            merged[f] = cvVal;
+          });
+          if (Object.keys(merged).length > 0) {
+            await base44.entities.Profile.update(profile.id, merged);
+            stats.profile = 1;
+            await reload();
+          }
         } else {
+          const merged = {};
+          PROFILE_FIELDS.forEach((f) => {
+            const cvVal = p[f];
+            if (hasVal(cvVal)) merged[f] = cvVal;
+          });
           await base44.entities.Profile.create({ profession: "dentistry", ...merged });
+          stats.profile = 1;
+          await reload();
         }
-        stats.profile = 1;
-        await reload();
       }
 
       for (const meta of SECTION_META) {

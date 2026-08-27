@@ -4,10 +4,13 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MatchItem } from "./MatchItem";
+import { ProfileReview } from "./ProfileReview";
+import { useProfession } from "@/professions/ProfessionContext";
 
 export function MatchSectionReview({ meta, data, sectionMatches, decisions, onDecision }) {
   const [expanded, setExpanded] = useState(true);
   const isProfile = meta.key === "profile";
+  const { profile } = useProfession();
   const items = isProfile ? (data ? [data] : []) : (Array.isArray(data) ? data : []);
   if (!items.length) return null;
 
@@ -16,6 +19,8 @@ export function MatchSectionReview({ meta, data, sectionMatches, decisions, onDe
     const s = isProfile ? "new" : (sectionMatches?.[i]?.state || "new");
     counts[s] = (counts[s] || 0) + 1;
   });
+
+  const profileState = isProfile ? (profile?.id ? "update" : "create") : null;
 
   return (
     <Card className="overflow-hidden">
@@ -35,9 +40,17 @@ export function MatchSectionReview({ meta, data, sectionMatches, decisions, onDe
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {counts.new > 0 && <Badge variant="default" className="text-[11px]">{counts.new} new</Badge>}
-          {counts.duplicate > 0 && <Badge variant="secondary" className="text-[11px]">{counts.duplicate} existing</Badge>}
-          {counts.possible > 0 && <Badge variant="warning" className="text-[11px]">{counts.possible} possible</Badge>}
+          {isProfile ? (
+            profileState === "update"
+              ? <Badge variant="secondary" className="text-[11px]">Profile Update</Badge>
+              : <Badge variant="default" className="text-[11px]">Create Profile</Badge>
+          ) : (
+            <>
+              {counts.new > 0 && <Badge variant="default" className="text-[11px]">{counts.new} new</Badge>}
+              {counts.duplicate > 0 && <Badge variant="secondary" className="text-[11px]">{counts.duplicate} existing</Badge>}
+              {counts.possible > 0 && <Badge variant="warning" className="text-[11px]">{counts.possible} possible</Badge>}
+            </>
+          )}
           {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
         </div>
       </div>
@@ -45,14 +58,23 @@ export function MatchSectionReview({ meta, data, sectionMatches, decisions, onDe
       {expanded && (
         <div className="border-t border-border divide-y divide-border">
           {items.map((item, i) => (
-            <MatchItem
-              key={i}
-              section={meta.key}
-              item={item}
-              match={isProfile ? null : sectionMatches?.[i]}
-              decision={decisions[`${meta.key}.${i}`]}
-              onChange={(val) => onDecision(meta.key, i, val)}
-            />
+            isProfile ? (
+              <ProfileReview
+                key={i}
+                extractedProfile={item}
+                decision={decisions[`${meta.key}.${i}`]}
+                onChange={(val) => onDecision(meta.key, i, val)}
+              />
+            ) : (
+              <MatchItem
+                key={i}
+                section={meta.key}
+                item={item}
+                match={sectionMatches?.[i]}
+                decision={decisions[`${meta.key}.${i}`]}
+                onChange={(val) => onDecision(meta.key, i, val)}
+              />
+            )
           ))}
         </div>
       )}
