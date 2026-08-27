@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
+import { Buffer } from "node:buffer";
 import mammoth from 'npm:mammoth@1.6.0';
 import { classifyItem } from "../../shared/cvMatching.ts";
 
@@ -57,7 +58,8 @@ async function extractDocxText(signedUrl) {
   }
   let result;
   try {
-    result = await mammoth.extractRawText({ arrayBuffer });
+    const buffer = Buffer.from(arrayBuffer);
+    result = await mammoth.extractRawText({ buffer });
   } catch (e) {
     throw new Error(`[DOCX stage: mammoth.extractRawText] ${e?.message || String(e)}`);
   }
