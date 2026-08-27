@@ -71,7 +71,8 @@ export default function ImportCV() {
       setDecisions(init);
       setStage("review");
     } catch (e) {
-      toast({ title: "Extraction failed", description: e.message, variant: "destructive" });
+      const backendError = e?.response?.data?.error;
+      toast({ title: "Extraction failed", description: backendError || e.message, variant: "destructive" });
       setStage("upload");
     }
   }, []);
