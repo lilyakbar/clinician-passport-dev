@@ -152,8 +152,12 @@ export default async function(req: Request): Promise<Response> {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { file_url, file_name } = await req.json();
-    if (!file_url) return Response.json({ error: 'file_url is required' }, { status: 400 });
+    const { file_uri, file_name } = await req.json();
+    if (!file_uri) return Response.json({ error: 'file_uri is required' }, { status: 400 });
+
+    // The CV is stored privately; mint a short-lived signed URL only to feed it to the LLM.
+    // The signed URL is never persisted on any Passport record.
+    const { signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 });
 
     const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: `You are a medical career data extraction specialist. Extract ALL career information from this CV/resume document into the exact JSON schema provided. 
@@ -168,7 +172,7 @@ CRITICAL RULES:
 - Do NOT include personal contact info (phone, email, home address) in any field
 - Extract everything — leadership, volunteering, research, presentations, memberships, conferences
 - Location should be "City, State" format`,
-      file_urls: [file_url],
+      file_urls: [signed_url],
       response_json_schema: EXTRACTION_SCHEMA
     });
 
