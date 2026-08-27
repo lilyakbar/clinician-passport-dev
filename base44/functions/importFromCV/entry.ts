@@ -34,12 +34,33 @@ async function extractPdfText(base44, signedUrl) {
 }
 
 async function extractDocxText(signedUrl) {
+  // DEV: stage-specific error handling to identify the exact DOCX failure.
   // Fetch the private file via its short-lived signed URL and parse the OOXML
   // binary to plain text with mammoth (no LLM involved).
-  const resp = await fetch(signedUrl);
-  if (!resp.ok) return "";
-  const arrayBuffer = await resp.arrayBuffer();
-  const result = await mammoth.extractRawText({ arrayBuffer });
+  let resp;
+  try {
+    resp = await fetch(signedUrl);
+  } catch (e) {
+    throw new Error(`[DOCX stage: fetch] ${e?.message || String(e)}`);
+  }
+  if (!resp.ok) {
+    throw new Error(`[DOCX stage: fetch] HTTP ${resp.status} ${resp.statusText}`);
+  }
+  let arrayBuffer;
+  try {
+    arrayBuffer = await resp.arrayBuffer();
+  } catch (e) {
+    throw new Error(`[DOCX stage: arrayBuffer] ${e?.message || String(e)}`);
+  }
+  if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+    throw new Error(`[DOCX stage: arrayBuffer] empty buffer (${arrayBuffer?.byteLength ?? 0} bytes)`);
+  }
+  let result;
+  try {
+    result = await mammoth.extractRawText({ arrayBuffer });
+  } catch (e) {
+    throw new Error(`[DOCX stage: mammoth.extractRawText] ${e?.message || String(e)}`);
+  }
   return String(result?.value || "").trim();
 }
 
@@ -262,7 +283,12 @@ export default async function(req: Request): Promise<Response> {
 
     // Mint a short-lived signed URL only so the server can read the private file.
     // The signed URL is never persisted on any Passport record and never sent to the LLM.
-    const { signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 });
+    let signed_url;
+    try {
+      ({ signed_url } = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({ file_uri, expires_in: 300 }));
+    } catch (e) {
+      return Response.json({ error: `[DOCX stage: CreateFileSignedUrl] ${e?.message || String(e)}` }, { status: 500 });
+    }
 
     // 2. Deterministic text extraction (no LLM).
     let documentText = "";
