@@ -93,6 +93,12 @@ module.exports = {
         display: ['var(--font-display)'],
         mono: ['var(--font-mono)']
       },
+      fontSize: {
+        h1: ['var(--text-h1)', { lineHeight: '1.15', letterSpacing: '-0.02em' }],
+        h2: ['var(--text-h2)', { lineHeight: '1.25', letterSpacing: '-0.015em' }],
+        body: ['var(--text-body)', { lineHeight: '1.5' }],
+        meta: ['var(--text-meta)', { lineHeight: '1.45' }],
+      },
       keyframes: {
         'accordion-down': {
           from: { height: '0' },

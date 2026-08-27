@@ -1,11 +1,24 @@
 import * as React from "react"
+import { cva } from "class-variance-authority";
 
 import { cn } from "@/lib/utils"
 
-const Card = React.forwardRef(({ className, ...props }, ref) => (
+const cardVariants = cva("rounded-xl bg-card text-card-foreground", {
+  variants: {
+    variant: {
+      default: "border border-border/50",
+      elevated: "border border-border shadow-card",
+    },
+  },
+  defaultVariants: {
+    variant: "default",
+  },
+});
+
+const Card = React.forwardRef(({ className, variant, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("rounded-xl border border-border bg-card text-card-foreground shadow-card", className)}
+    className={cn(cardVariants({ variant, className }))}
     {...props} />
 ))
 Card.displayName = "Card"
