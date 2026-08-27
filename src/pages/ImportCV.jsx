@@ -48,6 +48,7 @@ export default function ImportCV() {
       const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
       const res = await base44.functions.invoke("importFromCV", { file_uri, file_name: file.name });
       const data = res.data;
+      if (data?.error) throw new Error(data.error);
       if (!data?.extracted) throw new Error("No data extracted from document.");
       setExtracted(data.extracted);
       setMatches(data.matches || {});
