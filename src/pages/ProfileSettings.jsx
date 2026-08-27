@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
-} from "@/components/ui/select";
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from
+"@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { UserCircle, Mail, Save, Loader2 } from "lucide-react";
 
@@ -21,7 +21,7 @@ export default function ProfileSettings() {
     specialty: "",
     location: "",
     bio: "",
-    career_stage: "",
+    career_stage: ""
   });
   const [authEmail, setAuthEmail] = useState("");
   const [saving, setSaving] = useState(false);
@@ -33,7 +33,7 @@ export default function ProfileSettings() {
         specialty: profile.specialty || "",
         location: profile.location || "",
         bio: profile.bio || "",
-        career_stage: profile.career_stage || "",
+        career_stage: profile.career_stage || ""
       });
     }
   }, [profile]);
@@ -57,7 +57,7 @@ export default function ProfileSettings() {
         specialty: form.specialty,
         location: form.location,
         bio: form.bio,
-        career_stage: form.career_stage,
+        career_stage: form.career_stage
       });
       toast({ title: "Profile saved", description: "Your changes have been persisted." });
     } catch (err) {
@@ -71,8 +71,8 @@ export default function ProfileSettings() {
     return (
       <div className="flex justify-center py-24">
         <Loader2 className="h-8 w-8 animate-spin text-accent" />
-      </div>
-    );
+      </div>);
+
   }
 
   const careerStages = professionModule?.careerStages || [];
@@ -110,62 +110,62 @@ export default function ProfileSettings() {
         <Card className="p-6 sm:p-7 space-y-6">
           <div className="grid sm:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <Label htmlFor="full_name">Full name</Label>
+              <Label htmlFor="full_name">Full Name</Label>
               <Input
                 id="full_name"
                 value={form.full_name}
                 onChange={(e) => handleChange("full_name", e.target.value)}
-                placeholder="Dr. Jane Doe"
-              />
+                placeholder="Dr. Jane Doe" />
+              
             </div>
 
             <div className="space-y-2">
-              <Label>Profession track</Label>
+              <Label>Profession Track</Label>
               <Select
                 value={professionModule?.key}
-                onValueChange={handleProfessionChange}
-              >
+                onValueChange={handleProfessionChange}>
+                
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {professions.map((p) => (
-                    <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>
-                  ))}
+                  {professions.map((p) =>
+                  <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label>Career stage</Label>
+              <Label>Career Stage</Label>
               <Select
                 value={form.career_stage}
-                onValueChange={(v) => handleChange("career_stage", v)}
-              >
+                onValueChange={(v) => handleChange("career_stage", v)}>
+                
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select a stage" />
                 </SelectTrigger>
                 <SelectContent>
-                  {careerStages.map((stage) => (
-                    <SelectItem key={stage} value={stage}>{stage}</SelectItem>
-                  ))}
+                  {careerStages.map((stage) =>
+                  <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="specialty">Specialty / area of interest</Label>
+              <Label htmlFor="specialty">Specialty / Area of Interest</Label>
               <Input
                 id="specialty"
                 list="specialty-options"
                 value={form.specialty}
                 onChange={(e) => handleChange("specialty", e.target.value)}
-                placeholder="e.g. Orthodontics"
-              />
+                placeholder="e.g. Orthodontics" />
+              
               <datalist id="specialty-options">
-                {specialtyOptions.map((s) => (
-                  <option key={s} value={s} />
-                ))}
+                {specialtyOptions.map((s) =>
+                <option key={s} value={s} />
+                )}
               </datalist>
             </div>
 
@@ -175,8 +175,8 @@ export default function ProfileSettings() {
                 id="location"
                 value={form.location}
                 onChange={(e) => handleChange("location", e.target.value)}
-                placeholder="City, State"
-              />
+                placeholder="City, State" />
+              
             </div>
 
             <div className="space-y-2 sm:col-span-2">
@@ -186,8 +186,8 @@ export default function ProfileSettings() {
                 rows={5}
                 value={form.bio}
                 onChange={(e) => handleChange("bio", e.target.value)}
-                placeholder="A short professional summary..."
-              />
+                placeholder="A short professional summary..." />
+              
             </div>
           </div>
 
@@ -199,6 +199,6 @@ export default function ProfileSettings() {
           </div>
         </Card>
       </form>
-    </div>
-  );
+    </div>);
+
 }
