@@ -26,7 +26,9 @@ const pillOff = "bg-card text-muted-foreground border-border hover:bg-muted/50";
 export function ProfileReview({ extractedProfile, decision, onChange }) {
   const { profile } = useProfession();
   const hasExisting = !!profile?.id;
-  const action = decision?.action || (hasExisting ? "update" : "create");
+  const action = hasExisting
+    ? (decision?.action === "keep" ? "keep" : "update")
+    : (decision?.action || "create");
 
   const changed = [];
   const unchanged = [];
