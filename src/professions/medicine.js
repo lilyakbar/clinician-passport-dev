@@ -64,6 +64,16 @@ export const medicine = {
     "Urology",
     "Physical Medicine & Rehabilitation",
   ],
+  // Career stage options for medical professionals
+  careerStages: [
+    "Pre-med",
+    "Medical student",
+    "Resident",
+    "Fellow",
+    "Attending / Practicing physician",
+    "Academic / Research",
+    "Other",
+  ],
   ce: {
     unitLabel: "CME credits",
     creditLabel: "AMA PRA Category 1 Credits",

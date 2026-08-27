@@ -122,6 +122,15 @@ export const dentistry = {
     "Prosthodontics",
     "Dental Public Health",
   ],
+  // Career stage options for dentistry professionals
+  careerStages: [
+    "Pre-dental",
+    "Dental student",
+    "Resident / Fellow",
+    "Practicing dentist",
+    "Academic / Research",
+    "Other",
+  ],
   // Continuing education terminology specific to dentistry
   ce: {
     unitLabel: "CE hours",

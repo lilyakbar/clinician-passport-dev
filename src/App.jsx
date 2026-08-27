@@ -25,6 +25,7 @@ import AskMyCareer from '@/pages/AskMyCareer';
 import ImportCV from '@/pages/ImportCV';
 import ResumeBuilder from '@/pages/ResumeBuilder';
 import ComplianceIntelligence from '@/pages/ComplianceIntelligence';
+import ProfileSettings from '@/pages/ProfileSettings';
 import RecordsPage from '@/pages/RecordsPage';
 import {
   careerHistoryConfig, educationConfig, researchConfig, publicationsConfig,
@@ -85,6 +86,7 @@ const AuthenticatedApp = () => {
           <Route path="/ask-my-career" element={<AskMyCareer />} />
           <Route path="/import-cv" element={<ImportCV />} />
           <Route path="/resume-builder" element={<ResumeBuilder />} />
+          <Route path="/settings" element={<ProfileSettings />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

@@ -13,6 +13,9 @@
     "full_name": {
       "type": "string"
     },
+    "career_stage": {
+      "type": "string"
+    },
     "credentials_string": {
       "type": "string"
     },
@@ -75,5 +78,6 @@
         }
       ]
     }
-  }
+  },
+  "required": []
 }
