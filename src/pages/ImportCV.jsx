@@ -1,125 +1,43 @@
 import React, { useState, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
+import { useProfession } from "@/professions/ProfessionContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import PageHeader from "@/components/PageHeader";
+import { MatchSectionReview } from "@/components/importcv/MatchSectionReview";
 import {
-  Upload, FileText, CheckCircle2, AlertCircle, Loader2,
-  ChevronDown, ChevronUp, User, Briefcase, GraduationCap,
+  Upload, FileText, CheckCircle2, Loader2,
+  User, Briefcase, GraduationCap,
   FlaskConical, Presentation, HeartHandshake, Users, CalendarDays, Trophy
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SECTION_META = [
-  { key: "profile",       label: "Profile",         icon: User,           color: "bg-accent/10 text-accent" },
-  { key: "education",     label: "Education",        icon: GraduationCap,  color: "bg-primary/10 text-primary" },
-  { key: "career_history",label: "Career History",   icon: Briefcase,      color: "bg-warning/10 text-warning" },
-  { key: "memberships",   label: "Memberships",      icon: Users,          color: "bg-info/10 text-info" },
-  { key: "leadership",    label: "Leadership",       icon: Trophy,         color: "bg-accent/10 text-accent" },
-  { key: "research",      label: "Research",         icon: FlaskConical,   color: "bg-success/10 text-success" },
-  { key: "presentations", label: "Presentations",    icon: Presentation,   color: "bg-primary/10 text-primary" },
-  { key: "volunteering",  label: "Volunteering",     icon: HeartHandshake, color: "bg-warning/10 text-warning" },
-  { key: "conferences",   label: "Conferences",      icon: CalendarDays,   color: "bg-info/10 text-info" },
+  { key: "profile",        label: "Profile",         icon: User,           color: "bg-accent/10 text-accent",        entity: null },
+  { key: "education",      label: "Education",       icon: GraduationCap,  color: "bg-primary/10 text-primary",     entity: "Education" },
+  { key: "career_history", label: "Career History",   icon: Briefcase,      color: "bg-warning/10 text-warning",      entity: "CareerHistory" },
+  { key: "memberships",    label: "Memberships",      icon: Users,          color: "bg-info/10 text-info",            entity: "Membership" },
+  { key: "leadership",     label: "Leadership",       icon: Trophy,         color: "bg-accent/10 text-accent",        entity: "Leadership" },
+  { key: "research",       label: "Research",         icon: FlaskConical,   color: "bg-success/10 text-success",      entity: "Research" },
+  { key: "presentations",  label: "Presentations",    icon: Presentation,   color: "bg-primary/10 text-primary",     entity: "Presentation" },
+  { key: "volunteering",   label: "Volunteering",     icon: HeartHandshake, color: "bg-warning/10 text-warning",      entity: "Volunteering" },
+  { key: "conferences",    label: "Conferences",      icon: CalendarDays,   color: "bg-info/10 text-info",            entity: "Conference" },
 ];
 
-function getEntryLabel(section, item) {
-  switch (section) {
-    case "profile":       return item.full_name || "Profile";
-    case "education":     return `${item.degree || ""} — ${item.institution || ""}`;
-    case "career_history":return `${item.position_title || ""} @ ${item.organization || ""}`;
-    case "memberships":   return item.organization || "";
-    case "leadership":    return `${item.role || ""} — ${item.organization || ""}`;
-    case "research":      return item.title || "";
-    case "presentations": return item.title || "";
-    case "volunteering":  return `${item.role || ""} @ ${item.organization || ""}`;
-    case "conferences":   return item.title || "";
-    default:              return JSON.stringify(item).slice(0, 60);
-  }
-}
+const DECISION_DEFAULT = { new: "import", duplicate: "skip", possible: "skip" };
 
-function getEntrySubtitle(section, item) {
-  const dates = [item.start_date, item.end_date].filter(Boolean).map(d => d.slice(0, 7)).join(" – ");
-  const current = item.current ? "Present" : "";
-  const dateStr = item.start_date ? (item.current ? `${item.start_date.slice(0,7)} – Present` : dates) : "";
-  switch (section) {
-    case "profile":       return item.specialty || item.location || "";
-    case "education":     return `${item.location || ""} ${dateStr ? "· " + dateStr : ""}`.trim();
-    default:              return `${item.location || ""} ${dateStr ? "· " + dateStr : ""}`.trim();
-  }
-}
-
-function SectionReview({ meta, data, checked, onToggle }) {
-  const [expanded, setExpanded] = useState(true);
-  const isProfile = meta.key === "profile";
-  const items = isProfile ? (data ? [data] : []) : (Array.isArray(data) ? data : []);
-
-  if (!items.length) return null;
-
-  const allChecked = items.every((_, i) => checked[i] !== false);
-
-  return (
-    <Card className="overflow-hidden">
-      <div
-        className="flex items-center justify-between px-5 py-3.5 cursor-pointer hover:bg-muted/30 transition-colors"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div className="flex items-center gap-3">
-          <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", meta.color)}>
-            <meta.icon className="h-4 w-4" />
-          </div>
-          <div>
-            <span className="font-heading font-semibold text-[15px]">{meta.label}</span>
-            <span className="ml-2 text-xs text-muted-foreground">{items.length} item{items.length !== 1 ? "s" : ""}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={allChecked ? "success" : "warning"} className="text-[11px]">
-            {items.filter((_, i) => checked[i] !== false).length} / {items.length} selected
-          </Badge>
-          {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-        </div>
-      </div>
-
-      {expanded && (
-        <div className="border-t border-border divide-y divide-border">
-          {items.map((item, i) => (
-            <label
-              key={i}
-              className={cn(
-                "flex items-start gap-3.5 px-5 py-3.5 cursor-pointer transition-colors",
-                checked[i] !== false ? "bg-accent/5" : "bg-muted/10"
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={checked[i] !== false}
-                onChange={() => onToggle(i)}
-                className="mt-0.5 h-4 w-4 accent-accent"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{getEntryLabel(meta.key, item)}</div>
-                {getEntrySubtitle(meta.key, item) && (
-                  <div className="text-xs text-muted-foreground mt-0.5 truncate">{getEntrySubtitle(meta.key, item)}</div>
-                )}
-                {item.description && (
-                  <div className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{item.description}</div>
-                )}
-              </div>
-            </label>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
+const PROFILE_FIELDS = ["full_name", "credentials_string", "specialty", "bio", "location"];
 
 export default function ImportCV() {
+  const { profile, reload } = useProfession();
   const { toast } = useToast();
   const [stage, setStage] = useState("upload"); // upload | extracting | review | importing | done
   const [extracted, setExtracted] = useState(null);
-  const [checked, setChecked] = useState({});
+  const [matches, setMatches] = useState(null);
+  const [decisions, setDecisions] = useState({});
+  const [importBatchId, setImportBatchId] = useState(null);
+  const [sourceDocName, setSourceDocName] = useState("");
   const [dragging, setDragging] = useState(false);
   const [importStats, setImportStats] = useState(null);
 
@@ -128,17 +46,24 @@ export default function ImportCV() {
     setStage("extracting");
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const res = await base44.functions.invoke("importFromCV", { file_url });
-      const data = res.data?.extracted;
-      if (!data) throw new Error("No data extracted from document.");
-      setExtracted(data);
-      // default all checked
-      const initChecked = {};
+      const res = await base44.functions.invoke("importFromCV", { file_url, file_name: file.name });
+      const data = res.data;
+      if (!data?.extracted) throw new Error("No data extracted from document.");
+      setExtracted(data.extracted);
+      setMatches(data.matches || {});
+      setImportBatchId(data.import_batch_id);
+      setSourceDocName(data.source_document_name || file.name);
+
+      const init = {};
       SECTION_META.forEach(({ key }) => {
-        const items = key === "profile" ? (data[key] ? [data[key]] : []) : (data[key] || []);
-        items.forEach((_, i) => { initChecked[`${key}.${i}`] = true; });
+        const isProfile = key === "profile";
+        const items = isProfile ? (data.extracted[key] ? [data.extracted[key]] : []) : (data.extracted[key] || []);
+        items.forEach((_, i) => {
+          const state = isProfile ? "new" : (data.matches?.[key]?.[i]?.state || "new");
+          init[`${key}.${i}`] = DECISION_DEFAULT[state] || "import";
+        });
       });
-      setChecked(initChecked);
+      setDecisions(init);
       setStage("review");
     } catch (e) {
       toast({ title: "Extraction failed", description: e.message, variant: "destructive" });
@@ -153,44 +78,71 @@ export default function ImportCV() {
     if (file) handleFile(file);
   }, [handleFile]);
 
-  const toggleItem = (section, idx) => {
-    const key = `${section}.${idx}`;
-    setChecked(prev => ({ ...prev, [key]: prev[key] === false ? true : false }));
+  const setDecision = (section, idx, val) =>
+    setDecisions(prev => ({ ...prev, [`${section}.${idx}`]: val }));
+
+  // Merge incoming extracted fields into an existing record.
+  // Never overwrites a non-empty existing value with an empty imported value.
+  const mergeUpdate = (existing, incoming) => {
+    const merged = { ...existing };
+    for (const [k, v] of Object.entries(incoming || {})) {
+      if (v !== undefined && v !== null && v !== "") merged[k] = v;
+    }
+    delete merged.id;
+    delete merged.created_date;
+    delete merged.updated_date;
+    delete merged.created_by_id;
+    return merged;
   };
 
   const handleImport = async () => {
     setStage("importing");
-    const stats = { profile: 0, education: 0, career_history: 0, memberships: 0, leadership: 0, research: 0, presentations: 0, volunteering: 0, conferences: 0 };
+    const stats = {};
+    SECTION_META.forEach((m) => { stats[m.key] = 0; });
+    const provenance = {
+      source: "cv_import",
+      import_batch_id: importBatchId,
+      source_document_name: sourceDocName,
+    };
 
     try {
-      for (const { key } of SECTION_META) {
-        const isProfile = key === "profile";
-        const items = isProfile ? (extracted[key] ? [extracted[key]] : []) : (extracted[key] || []);
-        const selected = items.filter((_, i) => checked[`${key}.${i}`] !== false);
-        if (!selected.length) continue;
-
-        if (isProfile && selected[0]) {
-          // upsert profile — just create (first-time use)
-          await base44.entities.Profile.create(selected[0]);
-          stats.profile = 1;
+      // Profile: update the existing Profile record (never create a duplicate).
+      if (decisions["profile.0"] && decisions["profile.0"] !== "skip" && extracted.profile) {
+        const p = extracted.profile;
+        const merged = {};
+        PROFILE_FIELDS.forEach((f) => {
+          const v = p[f];
+          if (v !== undefined && v !== null && v !== "") merged[f] = v;
+        });
+        if (profile?.id) {
+          await base44.entities.Profile.update(profile.id, merged);
         } else {
-          const entityMap = {
-            education: "Education",
-            career_history: "CareerHistory",
-            memberships: "Membership",
-            leadership: "Leadership",
-            research: "Research",
-            presentations: "Presentation",
-            volunteering: "Volunteering",
-            conferences: "Conference",
-          };
-          const entityName = entityMap[key];
-          if (entityName) {
-            await base44.entities[entityName].bulkCreate(selected);
-            stats[key] = selected.length;
+          await base44.entities.Profile.create({ profession: "dentistry", ...merged });
+        }
+        stats.profile = 1;
+        await reload();
+      }
+
+      for (const meta of SECTION_META) {
+        if (meta.key === "profile" || !meta.entity) continue;
+        const items = extracted[meta.key] || [];
+        for (let i = 0; i < items.length; i++) {
+          const decision = decisions[`${meta.key}.${i}`];
+          if (!decision || decision === "skip") continue;
+          const item = items[i];
+          const match = matches?.[meta.key]?.[i];
+
+          if (decision === "import" || decision === "import_separately") {
+            await base44.entities[meta.entity].create({ ...item, ...provenance });
+            stats[meta.key] = (stats[meta.key] || 0) + 1;
+          } else if (decision === "update_existing" && match?.matchId) {
+            const merged = mergeUpdate(match.matchRecord, item);
+            await base44.entities[meta.entity].update(match.matchId, { ...merged, ...provenance });
+            stats[meta.key] = (stats[meta.key] || 0) + 1;
           }
         }
       }
+
       setImportStats(stats);
       setStage("done");
       toast({ title: "Import complete!", description: "Your Passport has been updated." });
@@ -198,6 +150,16 @@ export default function ImportCV() {
       toast({ title: "Import failed", description: e.message, variant: "destructive" });
       setStage("review");
     }
+  };
+
+  const reset = () => {
+    setStage("upload");
+    setExtracted(null);
+    setMatches(null);
+    setDecisions({});
+    setImportStats(null);
+    setImportBatchId(null);
+    setSourceDocName("");
   };
 
   return (
@@ -239,7 +201,7 @@ export default function ImportCV() {
           <div className="mt-6 grid sm:grid-cols-3 gap-4 text-center">
             {[
               { icon: "🧠", label: "AI-powered extraction", desc: "Reads any CV format and maps it to your Passport" },
-              { icon: "✅", label: "You confirm everything", desc: "Review and deselect anything before it's saved" },
+              { icon: "✅", label: "You confirm everything", desc: "Review matches and choose what to import, update, or skip" },
               { icon: "🔒", label: "Private info excluded", desc: "Phone, email, and home address are never imported" },
             ].map((f) => (
               <div key={f.label} className="rounded-xl bg-muted/40 p-4">
@@ -259,7 +221,7 @@ export default function ImportCV() {
           </div>
           <div>
             <p className="font-heading font-semibold text-[20px]">Extracting your career data…</p>
-            <p className="text-sm text-muted-foreground mt-1.5">The AI is reading your document and structuring every section. This takes about 15–30 seconds.</p>
+            <p className="text-sm text-muted-foreground mt-1.5">The AI is reading your document and checking it against your Passport. This takes about 15–30 seconds.</p>
           </div>
         </Card>
       )}
@@ -269,11 +231,11 @@ export default function ImportCV() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <CheckCircle2 className="h-4 w-4 text-success" />
-              Extraction complete — review and confirm what to import
+              Extraction complete — review matches and choose an action for each item
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStage("upload")}>Start over</Button>
-              <Button onClick={handleImport}>Import selected to Passport</Button>
+              <Button variant="outline" onClick={reset}>Start over</Button>
+              <Button onClick={handleImport}>Apply to Passport</Button>
             </div>
           </div>
 
@@ -282,23 +244,22 @@ export default function ImportCV() {
               const isProfile = meta.key === "profile";
               const items = isProfile ? (extracted[meta.key] ? [extracted[meta.key]] : []) : (extracted[meta.key] || []);
               if (!items.length) return null;
-              const sectionChecked = {};
-              items.forEach((_, i) => { sectionChecked[i] = checked[`${meta.key}.${i}`] !== false; });
               return (
-                <SectionReview
+                <MatchSectionReview
                   key={meta.key}
                   meta={meta}
                   data={extracted[meta.key]}
-                  checked={sectionChecked}
-                  onToggle={(i) => toggleItem(meta.key, i)}
+                  sectionMatches={matches?.[meta.key]}
+                  decisions={decisions}
+                  onDecision={setDecision}
                 />
               );
             })}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setStage("upload")}>Start over</Button>
-            <Button onClick={handleImport}>Import selected to Passport</Button>
+            <Button variant="outline" onClick={reset}>Start over</Button>
+            <Button onClick={handleImport}>Apply to Passport</Button>
           </div>
         </>
       )}
@@ -322,28 +283,24 @@ export default function ImportCV() {
           </div>
           <div>
             <p className="font-heading font-semibold text-[24px]">Your Passport is updated!</p>
-            <p className="text-sm text-muted-foreground mt-1.5">The following sections were imported:</p>
+            <p className="text-sm text-muted-foreground mt-1.5">The following sections were imported or updated:</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-lg">
-            {SECTION_META.filter(m => importStats[m.key] > 0).map((m) => (
+            {SECTION_META.filter((m) => importStats[m.key] > 0).map((m) => (
               <div key={m.key} className="rounded-xl bg-muted/40 px-4 py-3 flex items-center gap-2.5">
                 <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center", m.color)}>
                   <m.icon className="h-3.5 w-3.5" />
                 </div>
                 <div className="text-left">
                   <div className="text-sm font-medium">{m.label}</div>
-                  <div className="text-xs text-muted-foreground">{importStats[m.key]} added</div>
+                  <div className="text-xs text-muted-foreground">{importStats[m.key]} imported</div>
                 </div>
               </div>
             ))}
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => { setStage("upload"); setExtracted(null); setImportStats(null); }}>
-              Import another CV
-            </Button>
-            <Button onClick={() => window.location.href = "/"}>
-              Go to Dashboard
-            </Button>
+            <Button variant="outline" onClick={reset}>Import another CV</Button>
+            <Button onClick={() => window.location.href = "/"}>Go to Dashboard</Button>
           </div>
         </Card>
       )}

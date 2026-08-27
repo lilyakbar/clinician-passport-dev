@@ -23,6 +23,16 @@
     },
     "link": {
       "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "default": "manual"
+    },
+    "import_batch_id": {
+      "type": "string"
+    },
+    "source_document_name": {
+      "type": "string"
     }
   },
   "required": [
