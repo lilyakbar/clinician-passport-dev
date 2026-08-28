@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import PageHeader from "@/components/PageHeader";
 import JurisdictionCard from "@/components/compliance/JurisdictionCard";
+import CredentialFormDialog from "@/components/credentials/CredentialFormDialog";
 import {
   Loader2, RefreshCw, ShieldCheck, AlertTriangle, Award, Info,
 } from "lucide-react";
@@ -16,6 +17,9 @@ export default function ComplianceIntelligence() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  // Preselect the profession's primary license type when opening Add a License.
+  const licenseType = professionModule.credentialTypes.find((t) => /license/i.test(t)) || professionModule.credentialTypes[0];
 
   const load = async (force = false) => {
     setLoading(!data);
@@ -71,10 +75,18 @@ export default function ComplianceIntelligence() {
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-5">
             Add a state dental license with a jurisdiction in Credentials to unlock jurisdiction-specific compliance intelligence.
           </p>
-          <Button asChild>
-            <Link to="/credentials"><Award className="h-4 w-4" /> Add a License</Link>
+          <Button onClick={() => setAddOpen(true)}>
+            <Award className="h-4 w-4" /> Add a License
           </Button>
         </Card>
+        <CredentialFormDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          editing={null}
+          professionModule={professionModule}
+          defaultType={licenseType}
+          onSaved={() => load(true)}
+        />
       </div>
     );
   }
