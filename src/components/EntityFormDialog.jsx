@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +31,7 @@ export default function EntityFormDialog({
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -137,7 +138,26 @@ export default function EntityFormDialog({
                         <FileText className="h-4 w-4" /> File attached
                       </div>
                     )}
-                    <Input type="file" disabled={uploading} onChange={(e) => handleFile(f.name, e.target.files?.[0])} />
+                    <div
+                      className="flex items-center gap-2"
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleFile(f.name, file);
+                      }}
+                    >
+                      <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                        <FileText className="h-4 w-4" /> Choose File
+                      </Button>
+                      <input
+                        ref={fileRef}
+                        type="file"
+                        className="hidden"
+                        disabled={uploading}
+                        onChange={(e) => handleFile(f.name, e.target.files?.[0])}
+                      />
+                    </div>
                     {uploading && <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Uploading…</div>}
                   </div>
                 )}
