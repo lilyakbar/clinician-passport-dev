@@ -21,6 +21,12 @@
     },
     "notes": {
       "type": "string"
+    },
+    "linked_entity_type": {
+      "type": "string"
+    },
+    "linked_entity_id": {
+      "type": "string"
     }
   },
   "required": [

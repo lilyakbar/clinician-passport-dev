@@ -17,6 +17,7 @@ import { Plus, Pencil, Trash2, Loader2, Award, AlertTriangle, CheckCircle2, XCir
 import { format, parseISO, isValid, differenceInDays } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { useProfession } from "@/professions/ProfessionContext";
+import CredentialDocuments from "@/components/credentials/CredentialDocuments";
 
 function fmt(d) {
   if (!d) return "—";
@@ -69,7 +70,15 @@ export default function Credentials() {
   };
 
   const remove = async (it) => {
-    await base44.entities.Credential.delete(it.id); await load();
+    await base44.entities.Credential.delete(it.id);
+    // Keep linked Documents but clear their link so they become standalone.
+    try {
+      await base44.entities.Document.updateMany(
+        { linked_entity_type: "Credential", linked_entity_id: it.id },
+        { $unset: { linked_entity_type: "", linked_entity_id: "" } }
+      );
+    } catch { /* unlink is best-effort */ }
+    await load();
     toast({ title: "Credential deleted" });
   };
 
@@ -146,6 +155,7 @@ export default function Credentials() {
                 <div><span className="text-muted-foreground text-xs">Issued: </span>{fmt(c.issue_date)}</div>
                 <div><span className="text-muted-foreground text-xs">Expires: </span>{fmt(c.expiration_date)}</div>
               </div>
+              <CredentialDocuments credentialId={c.id} />
               <div className="flex justify-end gap-1 mt-4 pt-3 border-t">
                 <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" onClick={() => remove(c)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
