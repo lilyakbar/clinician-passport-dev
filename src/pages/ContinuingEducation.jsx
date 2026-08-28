@@ -212,23 +212,15 @@ export default function ContinuingEducation() {
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Certificate</Label>
-              {form.certificate_url && (
-                <div className="text-xs text-success flex items-center gap-2">
-                  <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> Certificate attached</span>
+              {form.certificate_url ? (
+                <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="flex items-center gap-1 text-success"><FileText className="h-3 w-3" /> Legacy certificate attached</span>
                   <button type="button" onClick={async () => { try { await openFile(form.certificate_url); } catch (e) { toast({ title: "Could not open certificate", description: e.message, variant: "destructive" }); } }} className="text-primary hover:underline">View</button>
+                  <span className="text-muted-foreground/70">(read-only — add new certificates via Documents on the course card)</span>
                 </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Add the certificate as a linked Document from the course card after saving.</p>
               )}
-              <Input type="file" onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                try {
-                  const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
-                  setField("certificate_url", file_uri);
-                  toast({ title: "Certificate uploaded" });
-                } catch (err) {
-                  toast({ title: "Upload failed", variant: "destructive" });
-                }
-              }} />
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Notes</Label>
