@@ -1,16 +1,18 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Input } from "@/components/ui/input";
-import { Loader2, FileText, ExternalLink, Paperclip } from "lucide-react";
+import { FileText, ExternalLink, Paperclip } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useProfession } from "@/professions/ProfessionContext";
+import { documentConfig } from "@/coreConfigs";
+import EntityFormDialog from "@/components/EntityFormDialog";
 
 // Uploads and views Documents linked to a single Credential record.
-// Reuses the existing private upload (UploadPrivateFile) and the
-// backend-signed view flow (getDocumentFileUrl by Document id).
+// Reuses the same Add Document dialog as the main Documents page, pre-linking
+// each new Document to this Credential via linked_entity_type / linked_entity_id.
 export default function CredentialDocuments({ credentialId }) {
+  const { professionModule } = useProfession();
   const [docs, setDocs] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef(null);
+  const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
   const load = async () => {
@@ -25,26 +27,6 @@ export default function CredentialDocuments({ credentialId }) {
   };
 
   useEffect(() => { load(); }, [credentialId]);
-
-  const addDoc = async (file) => {
-    if (!file) return;
-    setUploading(true);
-    try {
-      const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
-      await base44.entities.Document.create({
-        title: file.name.replace(/\.[^.]+$/, ""),
-        file_url: file_uri,
-        date_uploaded: new Date().toISOString().slice(0, 10),
-        linked_entity_type: "Credential",
-        linked_entity_id: credentialId,
-      });
-      toast({ title: "Document linked" });
-      await load();
-    } catch (e) {
-      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
-    }
-    setUploading(false);
-  };
 
   const viewDoc = async (docId) => {
     try {
@@ -63,25 +45,12 @@ export default function CredentialDocuments({ credentialId }) {
         </div>
         <button
           type="button"
-          onClick={() => fileRef.current?.click()}
+          onClick={() => setOpen(true)}
           className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
         >
           <FileText className="h-3 w-3" /> Add document
         </button>
-        <Input
-          ref={fileRef}
-          type="file"
-          className="hidden"
-          disabled={uploading}
-          onChange={(e) => addDoc(e.target.files?.[0])}
-        />
       </div>
-
-      {uploading && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="h-3 w-3 animate-spin" /> Uploading…
-        </div>
-      )}
 
       {docs && docs.length > 0 && (
         <div className="space-y-1.5">
@@ -103,9 +72,21 @@ export default function CredentialDocuments({ credentialId }) {
         </div>
       )}
 
-      {docs && docs.length === 0 && !uploading && (
+      {docs && docs.length === 0 && (
         <div className="text-xs text-muted-foreground">No documents linked.</div>
       )}
+
+      <EntityFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        entityName="Document"
+        singularTitle="Document"
+        fields={documentConfig.fields}
+        editing={null}
+        professionModule={professionModule}
+        extraFields={{ linked_entity_type: "Credential", linked_entity_id: credentialId }}
+        onSaved={load}
+      />
     </div>
   );
 }
