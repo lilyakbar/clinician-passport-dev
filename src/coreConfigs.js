@@ -155,7 +155,7 @@ export const documentConfig = {
     { name: "expiration_date", label: "Expiration Date", type: "date" },
     { name: "notes", label: "Notes", type: "textarea", colSpan: 2 },
   ],
-  columns: ["title", "category", "date_uploaded", "expiration_date"],
+  columns: ["title", "category", "file_url", "date_uploaded", "expiration_date"],
 };
 
 export const conferenceConfig = {
