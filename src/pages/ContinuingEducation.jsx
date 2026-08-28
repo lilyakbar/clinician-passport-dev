@@ -31,6 +31,7 @@ export default function ContinuingEducation() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [certDocs, setCertDocs] = useState({});
   const { toast } = useToast();
 
   const load = async () => {
@@ -147,9 +148,16 @@ export default function ContinuingEducation() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant="outline" className="tabular-nums">{it.credits} {ce.creditLabel.toLowerCase()}</Badge>
-                  {it.certificate_url
-                    ? <button type="button" onClick={async () => { try { const res = await base44.functions.invoke("getCeCertificateUrl", { record_id: it.id }); if (res.data?.url) window.open(res.data.url, "_blank", "noopener,noreferrer"); } catch (e) { toast({ title: "Could not open certificate", description: e.message, variant: "destructive" }); } }} className="text-success hover:opacity-80" title="View certificate"><FileText className="h-4 w-4" /></button>
-                    : <FileText className="h-4 w-4 text-muted-foreground/30" title="No certificate" />}
+                  {(() => {
+                    const certDoc = certDocs[it.id] ?? null;
+                    if (certDoc) {
+                      return <button type="button" onClick={async () => { try { const res = await base44.functions.invoke("getDocumentFileUrl", { document_id: certDoc.id }); if (res.data?.url) window.open(res.data.url, "_blank", "noopener,noreferrer"); } catch (e) { toast({ title: "Could not open certificate", description: e.message, variant: "destructive" }); } }} className="text-success hover:opacity-80" title="View certificate"><FileText className="h-4 w-4" /></button>;
+                    }
+                    if (it.certificate_url) {
+                      return <button type="button" onClick={async () => { try { const res = await base44.functions.invoke("getCeCertificateUrl", { record_id: it.id }); if (res.data?.url) window.open(res.data.url, "_blank", "noopener,noreferrer"); } catch (e) { toast({ title: "Could not open certificate", description: e.message, variant: "destructive" }); } }} className="text-success hover:opacity-80" title="View certificate"><FileText className="h-4 w-4" /></button>;
+                    }
+                    return null;
+                  })()}
                   <Badge variant={it.status === "completed" ? "success" : it.status === "in_progress" ? "warning" : "info"}>{it.status}</Badge>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -157,7 +165,7 @@ export default function ContinuingEducation() {
                   <Button variant="ghost" size="icon" onClick={() => remove(it)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </div>
-              <CEDocuments ceId={it.id} />
+              <CEDocuments ceId={it.id} onDocs={(linked) => setCertDocs((prev) => ({ ...prev, [it.id]: linked.find((d) => d.category === "Certificate") || null }))} />
             </Card>
           ))}
         </div>

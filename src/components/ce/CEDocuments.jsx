@@ -9,7 +9,7 @@ import EntityFormDialog from "@/components/EntityFormDialog";
 // Uploads and views Documents linked to a single ContinuingEducation record.
 // Reuses the same Add Document dialog as the main Documents page, pre-linking
 // each new Document to this CE record via linked_entity_type / linked_entity_id.
-export default function CEDocuments({ ceId }) {
+export default function CEDocuments({ ceId, onDocs }) {
   const { professionModule } = useProfession();
   const [docs, setDocs] = useState(null);
   const [open, setOpen] = useState(false);
@@ -18,11 +18,14 @@ export default function CEDocuments({ ceId }) {
   const load = async () => {
     try {
       const all = await base44.entities.Document.list("-created_date", 200);
-      setDocs(all.filter(
+      const linked = all.filter(
         (d) => d.linked_entity_type === "ContinuingEducation" && d.linked_entity_id === ceId
-      ));
+      );
+      setDocs(linked);
+      onDocs?.(linked);
     } catch {
       setDocs([]);
+      onDocs?.([]);
     }
   };
 
