@@ -22,6 +22,7 @@ import { Plus, Pencil, Trash2, Loader2, Search, FileText, ExternalLink } from "l
 import { format, parseISO, isValid } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { useProfession } from "@/professions/ProfessionContext";
+import { openFile } from "@/lib/fileAccess";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -108,8 +109,8 @@ export default function EntityManager({ config }) {
     if (!file) return;
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      setField(name, file_url);
+      const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
+      setField(name, file_uri);
       if (!form.title && file.name) setField("title", file.name.replace(/\.[^.]+$/, ""));
       toast({ title: "File uploaded" });
     } catch (e) {
@@ -194,9 +195,16 @@ export default function EntityManager({ config }) {
                     <div key={f.name} className="min-w-0">
                       <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{f.label}</div>
                       {f.type === "file" && item[f.name] ? (
-                        <a href={item[f.name]} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline truncate">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try { await openFile(item[f.name]); }
+                            catch (e) { toast({ title: "Could not open file", description: e.message, variant: "destructive" }); }
+                          }}
+                          className="inline-flex items-center gap-1 text-sm text-primary hover:underline truncate"
+                        >
                           <ExternalLink className="h-3 w-3" /> View file
-                        </a>
+                        </button>
                       ) : (
                         <div className="text-sm font-medium truncate">{displayValue(f, item[f.name])}</div>
                       )}

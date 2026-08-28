@@ -18,6 +18,7 @@ import { Plus, Pencil, Trash2, Loader2, BookMarked, GraduationCap, FileText } fr
 import { format, parseISO, isValid } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { useProfession } from "@/professions/ProfessionContext";
+import { openFile } from "@/lib/fileAccess";
 
 function fmt(d) { if (!d) return "—"; try { const p = parseISO(d); return isValid(p) ? format(p, "MMM d, yyyy") : d; } catch { return d; } }
 
@@ -135,7 +136,7 @@ export default function ContinuingEducation() {
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant="outline" className="tabular-nums">{it.credits} {ce.creditLabel.toLowerCase()}</Badge>
                   {it.certificate_url
-                    ? <FileText className="h-4 w-4 text-success" title="Certificate attached" />
+                    ? <button type="button" onClick={async () => { try { await openFile(it.certificate_url); } catch (e) { toast({ title: "Could not open certificate", description: e.message, variant: "destructive" }); } }} className="text-success hover:opacity-80" title="View certificate"><FileText className="h-4 w-4" /></button>
                     : <FileText className="h-4 w-4 text-muted-foreground/30" title="No certificate" />}
                   <Badge variant={it.status === "completed" ? "success" : it.status === "in_progress" ? "warning" : "info"}>{it.status}</Badge>
                 </div>
@@ -199,14 +200,17 @@ export default function ContinuingEducation() {
             <div className="col-span-2 space-y-1.5">
               <Label>Certificate</Label>
               {form.certificate_url && (
-                <div className="text-xs text-success flex items-center gap-1"><FileText className="h-3 w-3" /> Certificate attached</div>
+                <div className="text-xs text-success flex items-center gap-2">
+                  <span className="flex items-center gap-1"><FileText className="h-3 w-3" /> Certificate attached</span>
+                  <button type="button" onClick={async () => { try { await openFile(form.certificate_url); } catch (e) { toast({ title: "Could not open certificate", description: e.message, variant: "destructive" }); } }} className="text-primary hover:underline">View</button>
+                </div>
               )}
               <Input type="file" onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
                 try {
-                  const { file_url } = await base44.integrations.Core.UploadFile({ file });
-                  setField("certificate_url", file_url);
+                  const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
+                  setField("certificate_url", file_uri);
                   toast({ title: "Certificate uploaded" });
                 } catch (err) {
                   toast({ title: "Upload failed", variant: "destructive" });
