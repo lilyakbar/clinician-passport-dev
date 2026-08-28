@@ -38,6 +38,12 @@
     },
     "notes": {
       "type": "string"
+    },
+    "source_credential_id": {
+      "type": "string"
+    },
+    "owner_id": {
+      "type": "string"
     }
   },
   "required": [
@@ -49,6 +55,9 @@
       "$or": [
         {
           "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.owner_id": "{{user.id}}"
         },
         {
           "user_condition": {
@@ -63,6 +72,9 @@
           "created_by_id": "{{user.id}}"
         },
         {
+          "data.owner_id": "{{user.id}}"
+        },
+        {
           "user_condition": {
             "role": "admin"
           }
@@ -73,6 +85,9 @@
       "$or": [
         {
           "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.owner_id": "{{user.id}}"
         },
         {
           "user_condition": {
