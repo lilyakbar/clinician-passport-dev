@@ -67,14 +67,14 @@ export default function CredentialDocuments({ credentialId }) {
           className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
         >
           <FileText className="h-3 w-3" /> Add document
-          <Input
-            ref={fileRef}
-            type="file"
-            className="hidden"
-            disabled={uploading}
-            onChange={(e) => addDoc(e.target.files?.[0])}
-          />
         </button>
+        <Input
+          ref={fileRef}
+          type="file"
+          className="hidden"
+          disabled={uploading}
+          onChange={(e) => addDoc(e.target.files?.[0])}
+        />
       </div>
 
       {uploading && (
