@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Input } from "@/components/ui/input";
 import { Loader2, FileText, ExternalLink, Paperclip } from "lucide-react";
@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 export default function CredentialDocuments({ credentialId }) {
   const [docs, setDocs] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -60,17 +61,20 @@ export default function CredentialDocuments({ credentialId }) {
         <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
           <Paperclip className="h-3 w-3" /> Documents
         </div>
-        <label className="cursor-pointer">
-          <span className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-            <FileText className="h-3 w-3" /> Add document
-          </span>
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+        >
+          <FileText className="h-3 w-3" /> Add document
           <Input
+            ref={fileRef}
             type="file"
             className="hidden"
             disabled={uploading}
             onChange={(e) => addDoc(e.target.files?.[0])}
           />
-        </label>
+        </button>
       </div>
 
       {uploading && (
