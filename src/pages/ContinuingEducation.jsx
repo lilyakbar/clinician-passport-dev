@@ -136,7 +136,7 @@ export default function ContinuingEducation() {
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant="outline" className="tabular-nums">{it.credits} {ce.creditLabel.toLowerCase()}</Badge>
                   {it.certificate_url
-                    ? <button type="button" onClick={async () => { try { await openFile(it.certificate_url); } catch (e) { toast({ title: "Could not open certificate", description: e.message, variant: "destructive" }); } }} className="text-success hover:opacity-80" title="View certificate"><FileText className="h-4 w-4" /></button>
+                    ? <button type="button" onClick={async () => { try { const res = await base44.functions.invoke("getCeCertificateUrl", { record_id: it.id }); if (res.data?.url) window.open(res.data.url, "_blank", "noopener,noreferrer"); } catch (e) { toast({ title: "Could not open certificate", description: e.message, variant: "destructive" }); } }} className="text-success hover:opacity-80" title="View certificate"><FileText className="h-4 w-4" /></button>
                     : <FileText className="h-4 w-4 text-muted-foreground/30" title="No certificate" />}
                   <Badge variant={it.status === "completed" ? "success" : it.status === "in_progress" ? "warning" : "info"}>{it.status}</Badge>
                 </div>
