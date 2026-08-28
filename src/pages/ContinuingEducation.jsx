@@ -19,6 +19,7 @@ import { format, parseISO, isValid } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { useProfession } from "@/professions/ProfessionContext";
 import { openFile } from "@/lib/fileAccess";
+import CEDocuments from "@/components/ce/CEDocuments";
 
 function fmt(d) { if (!d) return "—"; try { const p = parseISO(d); return isValid(p) ? format(p, "MMM d, yyyy") : d; } catch { return d; } }
 
@@ -62,7 +63,18 @@ export default function ContinuingEducation() {
     setSaving(false);
   };
 
-  const remove = async (it) => { await base44.entities.ContinuingEducation.delete(it.id); await load(); toast({ title: "Course deleted" }); };
+  const remove = async (it) => {
+    await base44.entities.ContinuingEducation.delete(it.id);
+    // Keep linked Documents but clear their link so they become standalone.
+    try {
+      await base44.entities.Document.updateMany(
+        { linked_entity_type: "ContinuingEducation", linked_entity_id: it.id },
+        { $unset: { linked_entity_type: "", linked_entity_id: "" } }
+      );
+    } catch { /* unlink is best-effort */ }
+    await load();
+    toast({ title: "Course deleted" });
+  };
 
   const totals = useMemo(() => {
     if (!items) return null;
@@ -145,6 +157,7 @@ export default function ContinuingEducation() {
                   <Button variant="ghost" size="icon" onClick={() => remove(it)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </div>
+              <CEDocuments ceId={it.id} />
             </Card>
           ))}
         </div>
