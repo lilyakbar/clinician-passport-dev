@@ -198,8 +198,14 @@ export default function EntityManager({ config }) {
                         <button
                           type="button"
                           onClick={async () => {
-                            try { await openFile(item[f.name]); }
-                            catch (e) { toast({ title: "Could not open file", description: e.message, variant: "destructive" }); }
+                            try {
+                              if (entityName === "Document") {
+                                const res = await base44.functions.invoke("getDocumentFileUrl", { document_id: item.id });
+                                if (res.data?.url) window.open(res.data.url, "_blank", "noopener,noreferrer");
+                              } else {
+                                await openFile(item[f.name]);
+                              }
+                            } catch (e) { toast({ title: "Could not open file", description: e.message, variant: "destructive" }); }
                           }}
                           className="inline-flex items-center gap-1 text-sm text-primary hover:underline truncate"
                         >
