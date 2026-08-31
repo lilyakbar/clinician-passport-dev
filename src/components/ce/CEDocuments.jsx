@@ -87,7 +87,7 @@ export default function CEDocuments({ ceId, onDocs }) {
         fields={documentConfig.fields}
         editing={null}
         professionModule={professionModule}
-        extraFields={{ linked_entity_type: "ContinuingEducation", linked_entity_id: ceId }}
+        extraFields={{ linked_entity_type: "ContinuingEducation", linked_entity_id: ceId, category: "Certificate" }}
         onSaved={load}
       />
     </div>
