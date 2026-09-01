@@ -12,6 +12,7 @@ import {
   FlaskConical, Presentation, HeartHandshake, Users, CalendarDays, Trophy, ShieldCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { hasRealValue } from "@/lib/placeholderValue";
 
 const SECTION_META = [
   { key: "profile",        label: "Profile",         icon: User,           color: "bg-accent/10 text-accent",        entity: null },
@@ -56,6 +57,8 @@ export default function ImportCV() {
         profession: professionKey,
         credential_types,
         jurisdiction_required_types,
+        state_names: professionModule.stateNames || {},
+        credential_type_aliases: professionModule.credentialTypeAliases || {},
       });
       const data = res.data;
       if (data?.error) throw new Error(data.error);
@@ -127,7 +130,7 @@ export default function ImportCV() {
       const profDecision = decisions["profile.0"];
       if (profDecision && profDecision.action !== "skip" && profDecision.action !== "keep" && extracted.profile) {
         const p = extracted.profile;
-        const hasVal = (v) => v !== undefined && v !== null && v !== "" && String(v).trim().toLowerCase() !== "not provided";
+        const hasVal = hasRealValue;
         if (profile?.id) {
           const merged = {};
           PROFILE_FIELDS.forEach((f) => {

@@ -28,6 +28,46 @@ export const dentistry = {
     "Sedation Permit",
     "Nitrous Oxide Permit",
   ],
+  // Conservative explicit aliases for CV import credential-type normalization.
+  // Keys are lowercase variants the LLM may produce; values map to the canonical
+  // credential_type. Anything not listed here and not an exact canonical match
+  // (case-insensitive) is dropped. No fuzzy/broad matching is performed.
+  credentialTypeAliases: {
+    "bls": "BLS Certification",
+    "bls provider": "BLS Certification",
+    "basic life support": "BLS Certification",
+    "bls cert": "BLS Certification",
+    "acls": "ACLS Certification",
+    "acls provider": "ACLS Certification",
+    "advanced cardiac life support": "ACLS Certification",
+    "advanced cardiovascular life support": "ACLS Certification",
+    "pals": "PALS Certification",
+    "pals provider": "PALS Certification",
+    "pediatric advanced life support": "PALS Certification",
+    "cpr": "CPR Certification",
+    "cpr course": "CPR Certification",
+    "dea": "DEA Registration",
+    "dea number": "DEA Registration",
+    "dea registration number": "DEA Registration",
+    "dental license": "State Dental License",
+    "state license": "State Dental License",
+    "npi": "NPI Number",
+    "national provider identifier": "NPI Number",
+    "board certification": "Specialty Board Certification",
+    "board certified": "Specialty Board Certification",
+    "diplomate": "Specialty Board Certification",
+    "sedation license": "Sedation Permit",
+    "sedation certification": "Sedation Permit",
+    "moderate sedation permit": "Sedation Permit",
+    "conscious sedation permit": "Sedation Permit",
+    "nitrous oxide license": "Nitrous Oxide Permit",
+    "nitrous oxide certification": "Nitrous Oxide Permit",
+    "nitrous permit": "Nitrous Oxide Permit",
+    "malpractice insurance": "Malpractice / Professional Liability Insurance",
+    "professional liability insurance": "Malpractice / Professional Liability Insurance",
+    "malpractice coverage": "Malpractice / Professional Liability Insurance",
+    "liability insurance": "Malpractice / Professional Liability Insurance",
+  },
   // First-class credential templates — pre-fill issuing body, description, and labels
   // when the user selects one of these critical credential types.
   credentialTemplates: {

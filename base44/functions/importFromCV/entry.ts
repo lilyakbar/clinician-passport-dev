@@ -107,6 +107,47 @@ function isTokenInText(token, normalizedText) {
   return normalizedText.split(" ").includes(t);
 }
 
+// Conservative credential-type normalization: accept an exact canonical match
+// (case-insensitive) or an explicit alias from the profession's alias map.
+// Anything else returns null (the caller drops the record). No fuzzy matching.
+function normalizeCredentialType(rawType, recognized, aliases) {
+  if (!rawType) return null;
+  const lower = String(rawType).trim().toLowerCase();
+  if (!lower) return null;
+  if (recognized) {
+    for (const t of recognized) {
+      if (t.toLowerCase() === lower) return t;
+    }
+  }
+  if (aliases && aliases[lower]) return aliases[lower];
+  return null;
+}
+
+// Resolve a state-issued credential jurisdiction. Accepts either the state
+// abbreviation or full state name from the LLM; verifies that one of those
+// forms appears as a token in the grounded source text; returns the canonical
+// abbreviation (or null if it cannot be resolved/grounded).
+function resolveJurisdiction(rawJur, stateNames, normalizedText) {
+  if (!rawJur || !stateNames) return null;
+  const val = String(rawJur).trim();
+  if (!val) return null;
+  const upper = val.toUpperCase();
+  const lower = val.toLowerCase();
+  let abbr = null;
+  if (stateNames[upper]) {
+    abbr = upper;
+  } else {
+    for (const [a, full] of Object.entries(stateNames)) {
+      if (full.toLowerCase() === lower) { abbr = a; break; }
+    }
+  }
+  if (!abbr) return null;
+  const inText = isTokenInText(abbr, normalizedText)
+    || isTokenInText(stateNames[abbr], normalizedText);
+  if (!inText) return null;
+  return abbr;
+}
+
 // ---------------------------------------------------------------------------
 // Extraction schema — every record carries a verbatim source_quote that must
 // exist in the extracted document text, or the record is rejected.
@@ -317,7 +358,7 @@ export default async function(req: Request): Promise<Response> {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { file_uri, file_name, profession, credential_types, jurisdiction_required_types } = await req.json();
+    const { file_uri, file_name, profession, credential_types, jurisdiction_required_types, state_names, credential_type_aliases } = await req.json();
     if (!file_uri) return Response.json({ error: 'file_uri is required' }, { status: 400 });
 
     // 1. File-type safety: only PDF and DOCX are accepted.
@@ -415,7 +456,9 @@ CRITICAL RULES:
       for (const item of items) {
         if (!item || typeof item !== "object") continue;
         if (!isGrounded(item.source_quote, normalizedText)) continue; // unsupported -> reject
-        kept.push(stripQuote(item));
+        // Keep the source_quote on CE items so the CE gate can verify explicit
+        // credit/hour language in the grounded text; it is stripped after gating.
+        kept.push(sectionKey === "continuing_education" ? { ...item } : stripQuote(item));
       }
       grounded[sectionKey] = kept;
     }
@@ -427,12 +470,18 @@ CRITICAL RULES:
     // number not actually present as a token in the source text.
     if (Array.isArray(grounded.credentials)) {
       const recognized = Array.isArray(credential_types) ? credential_types : null;
+      const aliases = credential_type_aliases && typeof credential_type_aliases === "object" ? credential_type_aliases : null;
       const needsJurisdiction = Array.isArray(jurisdiction_required_types) ? jurisdiction_required_types : [];
+      const stateNames = state_names && typeof state_names === "object" ? state_names : null;
       grounded.credentials = grounded.credentials.filter((item) => {
         if (!item || !item.name || !item.credential_type) return false;
-        if (recognized && !recognized.includes(item.credential_type)) return false; // unsupported type
-        if (needsJurisdiction.includes(item.credential_type)) {
-          if (!item.jurisdiction || !isTokenInText(item.jurisdiction, normalizedText)) return false;
+        const normalizedType = normalizeCredentialType(item.credential_type, recognized, aliases);
+        if (!normalizedType) return false; // unsupported type
+        item.credential_type = normalizedType;
+        if (needsJurisdiction.includes(normalizedType)) {
+          const resolved = resolveJurisdiction(item.jurisdiction, stateNames, normalizedText);
+          if (!resolved) return false;
+          item.jurisdiction = resolved;
         }
         if (item.license_number && !isTokenInText(item.license_number, normalizedText)) {
           item.license_number = "";
@@ -447,8 +496,21 @@ CRITICAL RULES:
     if (Array.isArray(grounded.continuing_education)) {
       grounded.continuing_education = grounded.continuing_education.filter((item) => {
         if (!item || !item.title) return false;
-        const c = Number(item.credits);
-        return typeof c === "number" && !isNaN(c) && c > 0;
+        const quote = normalizeForGrounding(item.source_quote || "");
+        if (!quote) return false;
+        // Require explicit CE/CDE hour/credit language in the grounded quote.
+        const ceLanguage = /\b(?:ce|cde)\s*(?:hour|credit)s?\b/.test(quote)
+          || /\b(?:hour|credit)s?\s*(?:ce|cde)\b/.test(quote)
+          || /\bcontinuing\s+education\b/.test(quote);
+        if (!ceLanguage) return false;
+        // Parse the numeric credit/hour amount from the grounded quote only.
+        const numMatch = quote.match(/(\d+(?:\.\d+)?)\s*(?:ce|cde)?\s*(?:hour|credit)s?/);
+        if (!numMatch) return false;
+        const c = Number(numMatch[1]);
+        if (!(typeof c === "number" && !isNaN(c) && c > 0)) return false;
+        item.credits = c;
+        delete item.source_quote;
+        return true;
       });
     }
 

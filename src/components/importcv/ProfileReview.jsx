@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useProfession } from "@/professions/ProfessionContext";
+import { hasRealValue } from "@/lib/placeholderValue";
 import { RefreshCw, FilePlus2, ArrowRight } from "lucide-react";
 
 const PROFILE_FIELDS = [
@@ -13,11 +14,7 @@ const PROFILE_FIELDS = [
   { key: "location", label: "Location" },
 ];
 
-function hasValue(v) {
-  if (v === undefined || v === null) return false;
-  const s = String(v).trim();
-  return s !== "" && s.toLowerCase() !== "not provided" && s.toLowerCase() !== "n/a";
-}
+const hasValue = hasRealValue;
 
 const pillBase = "px-2.5 py-1 rounded-md text-xs font-medium border transition-colors";
 const pillOn = "bg-accent text-white border-accent";
