@@ -31,6 +31,7 @@ import Passport from '@/pages/Passport';
 import CredentialsCE from '@/pages/CredentialsCE';
 import GoalsApplications from '@/pages/GoalsApplications';
 import CVResume from '@/pages/CVResume';
+import Export from '@/pages/Export';
 import {
   careerHistoryConfig, educationConfig, researchConfig, publicationsConfig,
   presentationsConfig, volunteeringConfig, leadershipConfig, membershipConfig,
@@ -95,6 +96,7 @@ const AuthenticatedApp = () => {
           <Route path="/credentials-ce" element={<CredentialsCE />} />
           <Route path="/career" element={<GoalsApplications />} />
           <Route path="/cv-resume" element={<CVResume />} />
+          <Route path="/export" element={<Export />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
