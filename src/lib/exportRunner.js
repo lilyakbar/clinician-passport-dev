@@ -1,5 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import JSZip from "jszip";
+import { buildSchemaSnapshot } from "./schemaSnapshot";
 
 // Read-only migration export orchestration. Runs entirely in the browser.
 // Fetches structured records + file binaries via the exportPassport backend
@@ -15,6 +16,18 @@ export async function fetchManifest(exportAll) {
     export_all: exportAll === true,
   });
   return data;
+}
+
+// Fetch the backend manifest, then merge in the frontend-built schema snapshot
+// (sourced from base44/entities/*.jsonc). Returns manifest + any manifest-level
+// errors (from the backend) and schema-parse errors (from the frontend) so the
+// page can route them through the same error channel as file failures.
+export async function prepareManifest(exportAll) {
+  const manifest = await fetchManifest(exportAll);
+  const { schemas, errors: schemaErrors } = buildSchemaSnapshot();
+  manifest.schemas = schemas;
+  const manifestErrors = manifest.manifest_errors || [];
+  return { manifest, manifestErrors, schemaErrors };
 }
 
 // Paginate records mode until a short batch is returned.

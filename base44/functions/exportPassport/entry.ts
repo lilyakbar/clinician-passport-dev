@@ -80,6 +80,7 @@ async function enumerateAll(client, entity, sort = "-created_date", pageSize = 5
 
 async function buildFileManifest(client, svc) {
   const files = [];
+  const errors = [];
   for (const { entity, field } of FILE_FIELDS) {
     const { records } = await enumerateAll(client, entity, "-created_date", 500);
     for (const rec of records) {
@@ -114,52 +115,54 @@ async function buildFileManifest(client, svc) {
           entry.suggested_filename = suggestedFilename(entry);
           entry.content_type_guess = guessContentType(guessExtension(value));
         } catch (e) {
-          entry.error = e?.message || "Failed to sign private file URL";
+          const msg = e?.message || "Failed to sign private file URL";
+          entry.error = msg;
+          errors.push({ stage: "file_signing", entity, record_id: rec.id, field, message: msg });
         }
       }
       files.push(entry);
     }
   }
-  return files;
-}
-
-async function buildSchemaSnapshot(client) {
-  const schemas = {};
-  for (const entity of ENTITIES) {
-    try {
-      schemas[entity] = await client.entities[entity].schema();
-    } catch (e) {
-      schemas[entity] = { error: e?.message || "schema unavailable" };
-    }
-  }
-  return schemas;
+  return { files, errors };
 }
 
 async function buildEntityInventory(client) {
   const inventory = {};
+  const errors = [];
   for (const entity of ENTITIES) {
     try {
       const { records, has_more } = await enumerateAll(client, entity, "-created_date", 500);
       inventory[entity] = { count: records.length, has_more };
     } catch (e) {
-      inventory[entity] = { error: e?.message || "inventory unavailable" };
+      const msg = e?.message || "inventory unavailable";
+      inventory[entity] = { count: null, has_more: false, unavailable: true };
+      errors.push({ stage: "inventory", entity, message: msg });
     }
   }
-  return inventory;
+  return { inventory, errors };
 }
 
 async function buildUsers(base44, user, exportAll, svc) {
   if (!exportAll) {
-    return [{ id: user.id, email: user.email, full_name: user.full_name, role: user.role }];
+    return {
+      users: [{ id: user.id, email: user.email, full_name: user.full_name, role: user.role }],
+      errors: [],
+    };
   }
   try {
     const users = await svc.entities.User.list("-created_date", 1000);
-    return (users || []).map((u) => ({
-      id: u.id, email: u.email, full_name: u.full_name, role: u.role,
-      created_date: u.created_date, updated_date: u.updated_date,
-    }));
+    return {
+      users: (users || []).map((u) => ({
+        id: u.id, email: u.email, full_name: u.full_name, role: u.role,
+        created_date: u.created_date, updated_date: u.updated_date,
+      })),
+      errors: [],
+    };
   } catch (e) {
-    return [{ id: user.id, email: user.email, full_name: user.full_name, role: user.role, error: e?.message }];
+    return {
+      users: [{ id: user.id, email: user.email, full_name: user.full_name, role: user.role }],
+      errors: [{ stage: "users", message: e?.message || "user listing failed" }],
+    };
   }
 }
 
@@ -183,22 +186,26 @@ export default async function (req: Request): Promise<Response> {
     const svc = base44.asServiceRole;
 
     if (mode === "manifest") {
-      const [users, schemas, inventory, files] = await Promise.all([
+      const [usersResult, inventoryResult, filesResult] = await Promise.all([
         buildUsers(base44, user, exportAll, svc),
-        buildSchemaSnapshot(base44),
         buildEntityInventory(readClient),
         buildFileManifest(readClient, svc),
       ]);
+      const manifest_errors = [
+        ...usersResult.errors,
+        ...inventoryResult.errors,
+        ...filesResult.errors,
+      ];
       return Response.json({
         mode: "manifest",
         scope: exportAll ? "export_all" : "self",
         exported_at: new Date().toISOString(),
         exported_by: { id: user.id, email: user.email, role: user.role },
-        users,
+        users: usersResult.users,
         entities: ENTITIES,
-        entity_inventory: inventory,
-        schemas,
-        files,
+        entity_inventory: inventoryResult.inventory,
+        files: filesResult.files,
+        manifest_errors,
         references: {
           workflows: ["base44/workflows/Credential Reminder Sync.jsonc"],
           profession_packs: ["src/professions/dentistry.js", "src/professions/medicine.js", "src/professions/index.js"],
@@ -211,6 +218,7 @@ export default async function (req: Request): Promise<Response> {
           "Read-only export. No application data was modified.",
           "Private file signed URLs expire after " + SIGNED_URL_TTL + " seconds.",
           "ComplianceProfile.requirements is preserved verbatim as a JSON string.",
+          "Entity schemas are sourced from base44/entities/*.jsonc by the export client.",
         ],
       });
     }

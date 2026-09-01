@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/AuthContext";
 import {
-  fetchManifest, fetchAllRecords, downloadFiles, buildDataZip, buildFileZips, enrichManifest,
+  prepareManifest, fetchAllRecords, downloadFiles, buildDataZip, buildFileZips, enrichManifest,
 } from "@/lib/exportRunner";
 
 const EXPORT_ENTITIES = [
@@ -67,7 +67,7 @@ export default function Export() {
     setRecordCounts({});
     try {
       setPhase("Fetching manifest…");
-      const manifest = await fetchManifest(true);
+      const { manifest, manifestErrors, schemaErrors } = await prepareManifest(true);
       const fileManifest = manifest.files || [];
 
       setPhase("Fetching records…");
@@ -98,7 +98,7 @@ export default function Export() {
 
       setPhase("Packaging archives…");
       const enriched = enrichManifest(manifest, downloadResults);
-      const allErrors = [...fileErrors];
+      const allErrors = [...manifestErrors, ...schemaErrors, ...fileErrors];
       setErrors(allErrors);
       setErrorCount(allErrors.length);
 
