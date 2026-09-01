@@ -76,7 +76,7 @@ export default async function(req: Request): Promise<Response> {
 
     // Fetch all passport data in parallel
     const [profiles, education, career, creds, ce, research, pubs, pres, confs, leader, member, volunteer] = await Promise.all([
-      base44.entities.Profile.list().catch(() => []),
+      base44.entities.Profile.list("-created_date", 20).catch(() => []),
       base44.entities.Education.list().catch(() => []),
       base44.entities.CareerHistory.list().catch(() => []),
       base44.entities.Credential.list().catch(() => []),

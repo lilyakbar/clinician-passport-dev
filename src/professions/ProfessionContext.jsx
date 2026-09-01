@@ -37,8 +37,20 @@ export function ProfessionProvider({ children }) {
 
   const updateProfile = async (data) => {
     let p = profile;
-    if (p) { p = await base44.entities.Profile.update(p.id, data); }
-    else { p = await base44.entities.Profile.create(data); }
+    if (p) {
+      p = await base44.entities.Profile.update(p.id, data);
+    } else {
+      // In-memory profile missing — check DB before creating a duplicate
+      let existing = [];
+      try { existing = await base44.entities.Profile.list("-created_date", 20); } catch (_) { existing = []; }
+      const key = localStorage.getItem(ACTIVE_KEY) || "dentistry";
+      const found = (existing || []).find((r) => r.profession === key) || (existing || [])[0];
+      if (found) {
+        p = await base44.entities.Profile.update(found.id, data);
+      } else {
+        p = await base44.entities.Profile.create({ profession: key, ...data });
+      }
+    }
     setProfile(p);
     return p;
   };

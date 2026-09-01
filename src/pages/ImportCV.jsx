@@ -30,7 +30,7 @@ const DECISION_DEFAULT = { new: "import", duplicate: "skip", possible: "skip" };
 const PROFILE_FIELDS = ["full_name", "credentials_string", "specialty", "bio", "location"];
 
 export default function ImportCV() {
-  const { profile, reload } = useProfession();
+  const { profile, reload, professionKey } = useProfession();
   const { toast } = useToast();
   const [stage, setStage] = useState("upload"); // upload | extracting | review | importing | done
   const [extracted, setExtracted] = useState(null);
