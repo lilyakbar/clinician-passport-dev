@@ -117,7 +117,12 @@ export default function ComplianceIntelligence() {
       {/* Jurisdiction cards */}
       <div className="grid lg:grid-cols-2 gap-5">
         {jurisdictions.map((j) => (
-          <JurisdictionCard key={j.jurisdiction} data={j} />
+          <JurisdictionCard
+            key={j.jurisdiction}
+            data={j}
+            requirementKeys={professionModule.requirementKeys}
+            onRefresh={() => load(false)}
+          />
         ))}
       </div>
 

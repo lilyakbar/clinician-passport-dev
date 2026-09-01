@@ -9,6 +9,7 @@ import {
   Calendar, BookMarked, Clock, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ApplicabilitySuggestions from "@/components/compliance/ApplicabilitySuggestions";
 
 function fmt(d) {
   if (!d) return "—";
@@ -16,7 +17,7 @@ function fmt(d) {
   catch { return d; }
 }
 
-export default function JurisdictionCard({ data }) {
+export default function JurisdictionCard({ data, onRefresh, requirementKeys }) {
   const { jurisdiction, licenses, requirements, source, last_checked, verification_status, analysis } = data;
   const total = analysis.total_hours;
   const totalPct = total.required > 0 ? Math.min(100, Math.round((total.documented / total.required) * 100)) : 0;
@@ -139,6 +140,13 @@ export default function JurisdictionCard({ data }) {
           </ul>
         </div>
       )}
+
+      {/* AI-suggested CE applicability */}
+      <ApplicabilitySuggestions
+        credentialId={licenses[0]?.id}
+        requirementKeys={requirementKeys}
+        onRefresh={onRefresh}
+      />
 
       {/* Optimize CE link */}
       <div className="pt-2 border-t">
