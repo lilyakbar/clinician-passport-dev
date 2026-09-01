@@ -99,16 +99,10 @@ export default function ComplianceIntelligence() {
         title="Compliance Intelligence"
         description="Current CE and licensure requirements for each active license, compared against your documented CE."
       >
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => load(false)} disabled={refreshing}>
-            {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Refresh
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => load(true)} disabled={refreshing} title="Re-research current regulatory requirements from the source (slower)">
-            <RefreshCw className="h-3.5 w-3.5" />
-            Re-check requirements
-          </Button>
-        </div>
+        <Button variant="outline" onClick={() => load(true)} disabled={refreshing}>
+          {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          Refresh
+        </Button>
       </PageHeader>
 
       {/* Disclaimer */}
