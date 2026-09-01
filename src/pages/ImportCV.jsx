@@ -9,7 +9,7 @@ import { MatchSectionReview } from "@/components/importcv/MatchSectionReview";
 import {
   Upload, FileText, CheckCircle2, Loader2,
   User, Briefcase, GraduationCap,
-  FlaskConical, Presentation, HeartHandshake, Users, CalendarDays, Trophy
+  FlaskConical, Presentation, HeartHandshake, Users, CalendarDays, Trophy, ShieldCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +23,8 @@ const SECTION_META = [
   { key: "presentations",  label: "Presentations",    icon: Presentation,   color: "bg-primary/10 text-primary",     entity: "Presentation" },
   { key: "volunteering",   label: "Volunteering",     icon: HeartHandshake, color: "bg-warning/10 text-warning",      entity: "Volunteering" },
   { key: "conferences",    label: "Conferences",      icon: CalendarDays,   color: "bg-info/10 text-info",            entity: "Conference" },
+  { key: "credentials",    label: "Credentials",      icon: ShieldCheck,    color: "bg-accent/10 text-accent",        entity: "Credential" },
+  { key: "continuing_education", label: "Continuing Education", icon: GraduationCap, color: "bg-success/10 text-success", entity: "ContinuingEducation" },
 ];
 
 const DECISION_DEFAULT = { new: "import", duplicate: "skip", possible: "skip" };
@@ -30,7 +32,7 @@ const DECISION_DEFAULT = { new: "import", duplicate: "skip", possible: "skip" };
 const PROFILE_FIELDS = ["full_name", "credentials_string", "specialty", "bio", "location"];
 
 export default function ImportCV() {
-  const { profile, reload, professionKey } = useProfession();
+  const { profile, reload, professionKey, professionModule } = useProfession();
   const { toast } = useToast();
   const [stage, setStage] = useState("upload"); // upload | extracting | review | importing | done
   const [extracted, setExtracted] = useState(null);
@@ -46,7 +48,15 @@ export default function ImportCV() {
     setStage("extracting");
     try {
       const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
-      const res = await base44.functions.invoke("importFromCV", { file_uri, file_name: file.name });
+      const credential_types = professionModule.credentialTypes || [];
+      const jurisdiction_required_types = Object.entries(professionModule.credentialTemplates || {})
+        .filter(([, t]) => t.requiresJurisdiction).map(([k]) => k);
+      const res = await base44.functions.invoke("importFromCV", {
+        file_uri, file_name: file.name,
+        profession: professionKey,
+        credential_types,
+        jurisdiction_required_types,
+      });
       const data = res.data;
       if (data?.error) throw new Error(data.error);
       if (!data?.extracted) throw new Error("No data extracted from document.");
@@ -162,12 +172,15 @@ export default function ImportCV() {
           const item = items[i];
           const match = matches?.[meta.key]?.[i];
 
+          const needsProfession = meta.key === "credentials" || meta.key === "continuing_education";
           if (decision === "import" || decision === "import_separately") {
-            await base44.entities[meta.entity].create({ ...item, ...provenance });
+            const payload = { ...item, ...provenance, ...(needsProfession ? { profession: professionKey } : {}) };
+            await base44.entities[meta.entity].create(payload);
             stats[meta.key] = (stats[meta.key] || 0) + 1;
           } else if (decision === "update_existing" && match?.matchId) {
             const merged = mergeUpdate(match.matchRecord, item);
-            await base44.entities[meta.entity].update(match.matchId, { ...merged, ...provenance });
+            const payload = { ...merged, ...provenance, ...(needsProfession ? { profession: professionKey } : {}) };
+            await base44.entities[meta.entity].update(match.matchId, payload);
             stats[meta.key] = (stats[meta.key] || 0) + 1;
           }
         }

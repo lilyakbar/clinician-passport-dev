@@ -126,6 +126,24 @@ const matchers = {
     if (similar(x.title, e.title)) return "possible";
     if (normalizeStr(x.organization) === normalizeStr(e.organization) && dateEq) return "possible";
     return null;
+  },
+  credentials: function (x, e) {
+    const numEq = x.license_number && e.license_number && normalizeStr(x.license_number) === normalizeStr(e.license_number);
+    if (numEq) return "duplicate";
+    const typeEq = normalizeStr(x.credential_type) === normalizeStr(e.credential_type);
+    const nameEq = normalizeStr(x.name) === normalizeStr(e.name);
+    const jurEq = normalizeStr(x.jurisdiction) === normalizeStr(e.jurisdiction);
+    if (nameEq && typeEq && (jurEq || (!x.jurisdiction && !e.jurisdiction))) return "duplicate";
+    if (similar(x.name, e.name) && typeEq) return "possible";
+    return null;
+  },
+  continuing_education: function (x, e) {
+    const titleEq = normalizeStr(x.title) === normalizeStr(e.title);
+    const provEq = normalizeStr(x.provider) === normalizeStr(e.provider);
+    const dateEq = sameYear(x.completion_date, e.completion_date);
+    if (titleEq && (provEq || dateEq)) return "duplicate";
+    if (similar(x.title, e.title)) return "possible";
+    return null;
   }
 };
 

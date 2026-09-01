@@ -11,6 +11,8 @@ export function getEntryLabel(section, item) {
     case "presentations":  return item.title || "";
     case "volunteering":   return `${item.role || ""} @ ${item.organization || ""}`;
     case "conferences":    return item.title || "";
+    case "credentials":    return item.name || "";
+    case "continuing_education": return item.title || "";
     default:               return JSON.stringify(item).slice(0, 60);
   }
 }
@@ -23,6 +25,8 @@ export function getEntrySubtitle(section, item) {
     case "education":      return `${item.location || ""} ${dateStr ? "· " + dateStr : ""}`.trim();
     case "presentations":
     case "conferences":     return `${item.location || ""} ${item.date || item.start_date ? "· " + (item.date || item.start_date || "").slice(0, 7) : ""}`.trim();
+    case "credentials":    return `${item.credential_type || ""} ${item.jurisdiction ? "· " + item.jurisdiction : ""}`.trim();
+    case "continuing_education": return `${item.provider || ""} ${item.credits ? "· " + item.credits + " credits" : ""}`.trim();
     default:               return `${item.location || ""} ${dateStr ? "· " + dateStr : ""}`.trim();
   }
 }

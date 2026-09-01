@@ -20,6 +20,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useProfession } from "@/professions/ProfessionContext";
 import { openFile } from "@/lib/fileAccess";
 import CEDocuments from "@/components/ce/CEDocuments";
+import ImportedBadge from "@/components/ImportedBadge";
 
 function fmt(d) { if (!d) return "—"; try { const p = parseISO(d); return isValid(p) ? format(p, "MMM d, yyyy") : d; } catch { return d; } }
 
@@ -145,6 +146,9 @@ export default function ContinuingEducation() {
                   <div className="font-medium truncate">{it.title}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">{it.provider}{it.category ? ` · ${it.category}` : ""}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">Completed {fmt(it.completion_date)}</div>
+                  {it.source === "cv_import" && (
+                    <div className="mt-1.5"><ImportedBadge source={it.source} /></div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant="outline" className="tabular-nums">{it.credits} {ce.creditLabel.toLowerCase()}</Badge>

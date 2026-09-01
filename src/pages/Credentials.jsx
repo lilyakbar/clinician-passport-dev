@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useProfession } from "@/professions/ProfessionContext";
 import CredentialDocuments from "@/components/credentials/CredentialDocuments";
 import CredentialFormDialog from "@/components/credentials/CredentialFormDialog";
+import ImportedBadge from "@/components/ImportedBadge";
 
 function fmt(d) {
   if (!d) return "—";
@@ -113,6 +114,9 @@ export default function Credentials() {
                     )}
                     {c.credential_type}
                   </div>
+                  {c.source === "cv_import" && (
+                    <div className="mt-1.5"><ImportedBadge source={c.source} /></div>
+                  )}
                 </div>
                 <Badge variant={c._days !== null && c._days < 0 ? "danger" : c._days !== null && c._days <= 60 ? "warning" : "success"}>
                   {c._days === null ? "No expiry" : c._days < 0 ? "Expired" : c._days <= 60 ? `${c._days}d left` : "Active"}

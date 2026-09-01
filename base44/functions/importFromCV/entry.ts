@@ -98,6 +98,15 @@ function isGrounded(quote, normalizedText) {
   return normalizedText.includes(q);
 }
 
+// Token-level grounding for short identifiers (license numbers, state
+// abbreviations) where substring matching would false-positive — e.g. "ca"
+// inside "california". Checks that the value appears as a standalone word.
+function isTokenInText(token, normalizedText) {
+  const t = normalizeForGrounding(token);
+  if (!t) return false;
+  return normalizedText.split(" ").includes(t);
+}
+
 // ---------------------------------------------------------------------------
 // Extraction schema — every record carries a verbatim source_quote that must
 // exist in the extracted document text, or the record is rejected.
@@ -242,6 +251,41 @@ const EXTRACTION_SCHEMA = {
           source_quote: { type: "string", description: "A short verbatim quote copied directly from the source text that supports this item. Must be exact text that appears in the source document text." }
         }
       }
+    },
+    credentials: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          credential_type: { type: "string" },
+          issuing_body: { type: "string" },
+          license_number: { type: "string" },
+          issue_date: { type: "string", description: "YYYY-MM-DD" },
+          expiration_date: { type: "string", description: "YYYY-MM-DD" },
+          status: { type: "string", enum: ["active", "expiring", "expired", "pending", "inactive"] },
+          jurisdiction: { type: "string", description: "US state abbreviation, e.g. CA" },
+          notes: { type: "string" },
+          source_quote: { type: "string", description: "A short verbatim quote copied directly from the source text that supports this item. Must be exact text that appears in the source document text." }
+        }
+      }
+    },
+    continuing_education: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          provider: { type: "string" },
+          category: { type: "string" },
+          ce_type: { type: "string" },
+          credits: { type: "number", description: "Numeric CE/CDE credit or hour amount stated in the source text. Must be > 0." },
+          completion_date: { type: "string", description: "YYYY-MM-DD" },
+          status: { type: "string", enum: ["completed", "in_progress", "planned"] },
+          notes: { type: "string" },
+          source_quote: { type: "string", description: "A short verbatim quote copied directly from the source text that supports this item. Must be exact text that appears in the source document text." }
+        }
+      }
     }
   }
 };
@@ -254,7 +298,9 @@ const ENTITY_MAP = {
   research: "Research",
   presentations: "Presentation",
   volunteering: "Volunteering",
-  conferences: "Conference"
+  conferences: "Conference",
+  credentials: "Credential",
+  continuing_education: "ContinuingEducation"
 };
 
 const PROFILE_FIELDS = ["full_name", "credentials_string", "specialty", "bio", "location"];
@@ -271,7 +317,7 @@ export default async function(req: Request): Promise<Response> {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { file_uri, file_name } = await req.json();
+    const { file_uri, file_name, profession, credential_types, jurisdiction_required_types } = await req.json();
     if (!file_uri) return Response.json({ error: 'file_uri is required' }, { status: 400 });
 
     // 1. File-type safety: only PDF and DOCX are accepted.
@@ -332,7 +378,12 @@ CRITICAL RULES:
 - For career_history, include residencies, fellowships, internships, and employment.
 - For the profile, extract name, credentials (e.g. "DMD"), specialty, and a professional summary/bio if present.
 - Do NOT include personal contact info (phone, email, home address) in any field.
-- Location should be "City, State" format.`,
+- Location should be "City, State" format.
+- Credentials: extract ONLY professional licenses, permits, registrations, board certifications, and similar practice-authority credentials (e.g. state dental license, DEA registration, BLS/ACLS/PALS, NPI, sedation permit). Academic degrees such as DDS, DMD, BDS, or PhD are Education, NOT Credentials — never place them in credentials.
+- For credentials, set credential_type to one of exactly these values: ${(credential_types && credential_types.length) ? credential_types.join(", ") : "the recognized profession credential types"}. Do not invent or use any credential_type not in that list.
+- For credentials that require a state/jurisdiction (e.g. State Dental License, Sedation Permit, Nitrous Oxide Permit), only create the record if the source text explicitly names the state, and set jurisdiction to the US state abbreviation. If the state is not stated, omit that credential entirely.
+- For credentials, set status only when the text clearly indicates a lifecycle state (active, expiring, expired, pending, inactive); otherwise leave status empty. Never invent license numbers or expiration dates — only populate fields the text actually provides.
+- Continuing Education: place an item here ONLY if the source text explicitly states a CE/CDE credit or hour amount (e.g. "16 CE hours", "3 CDE credits", "8-hour continuing education course"). A conference, course, certification, or training item without an explicit credit/hour amount must NOT be placed in continuing_education — leave it in conferences, presentations, or career_history as appropriate. Always set credits to the numeric amount stated in the text.`,
       response_json_schema: EXTRACTION_SCHEMA
     });
 
@@ -367,6 +418,38 @@ CRITICAL RULES:
         kept.push(stripQuote(item));
       }
       grounded[sectionKey] = kept;
+    }
+
+    // Section-specific trust gates (run after grounding, before dedup).
+
+    // Credentials: constrain to recognized profession credential types;
+    // enforce jurisdiction for state-issued credentials; blank any license
+    // number not actually present as a token in the source text.
+    if (Array.isArray(grounded.credentials)) {
+      const recognized = Array.isArray(credential_types) ? credential_types : null;
+      const needsJurisdiction = Array.isArray(jurisdiction_required_types) ? jurisdiction_required_types : [];
+      grounded.credentials = grounded.credentials.filter((item) => {
+        if (!item || !item.name || !item.credential_type) return false;
+        if (recognized && !recognized.includes(item.credential_type)) return false; // unsupported type
+        if (needsJurisdiction.includes(item.credential_type)) {
+          if (!item.jurisdiction || !isTokenInText(item.jurisdiction, normalizedText)) return false;
+        }
+        if (item.license_number && !isTokenInText(item.license_number, normalizedText)) {
+          item.license_number = "";
+        }
+        return true;
+      });
+    }
+
+    // Continuing Education: only when the text explicitly states a positive
+    // CE/CDE credit/hour amount. The LLM is instructed to route accordingly;
+    // this gate is the backstop that drops creditless items.
+    if (Array.isArray(grounded.continuing_education)) {
+      grounded.continuing_education = grounded.continuing_education.filter((item) => {
+        if (!item || !item.title) return false;
+        const c = Number(item.credits);
+        return typeof c === "number" && !isNaN(c) && c > 0;
+      });
     }
 
     const import_batch_id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());

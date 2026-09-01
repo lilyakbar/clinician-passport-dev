@@ -15,8 +15,6 @@ export const dentistry = {
   stateNames,
   // Profession-specific credential types (NOT shared across professions)
   credentialTypes: [
-    "Doctor of Dental Surgery (DDS)",
-    "Doctor of Dental Medicine (DMD)",
     "State Dental License",
     "DEA Registration",
     "BLS Certification",
