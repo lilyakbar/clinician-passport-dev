@@ -8,7 +8,6 @@ import {
   CheckCircle2, AlertCircle, XCircle, ExternalLink, ShieldCheck,
   Calendar, BookMarked, Clock, AlertTriangle,
 } from "lucide-react";
-import ApplicabilitySuggestions from "@/components/compliance/ApplicabilitySuggestions";
 import { cn } from "@/lib/utils";
 
 function fmt(d) {
@@ -17,8 +16,8 @@ function fmt(d) {
   catch { return d; }
 }
 
-export default function JurisdictionCard({ data, onConfirmSuggestion, onRejectSuggestion }) {
-  const { jurisdiction, licenses, requirements, source, last_checked, verification_status, analysis, suggestions, orphaned_links } = data;
+export default function JurisdictionCard({ data }) {
+  const { jurisdiction, licenses, requirements, source, last_checked, verification_status, analysis } = data;
   const total = analysis.total_hours;
   const totalPct = total.required > 0 ? Math.min(100, Math.round((total.documented / total.required) * 100)) : 0;
 
@@ -140,14 +139,6 @@ export default function JurisdictionCard({ data, onConfirmSuggestion, onRejectSu
           </ul>
         </div>
       )}
-
-      {/* CE Applicability suggestions — AI-proposed, user confirms/rejects */}
-      <ApplicabilitySuggestions
-        suggestions={suggestions || []}
-        orphanedLinks={orphaned_links || []}
-        onConfirm={onConfirmSuggestion}
-        onReject={onRejectSuggestion}
-      />
 
       {/* Optimize CE link */}
       <div className="pt-2 border-t">

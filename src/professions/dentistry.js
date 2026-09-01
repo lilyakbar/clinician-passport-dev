@@ -153,31 +153,6 @@ export const dentistry = {
     // Typical renewal expectations (informational; varies by state)
     typicalAnnualHours: 20,
     typicalCycleYears: 2,
-    // Canonical requirement taxonomy — stable keys for compliance mapping.
-    // Board free-text labels are mapped to these keys; unmapped labels get
-    // a distinct `unmapped_<slug>` fallback key so they never collapse together.
-    requirementTaxonomy: {
-      overall: { key: "overall", scope: "overall", label: "Total CE Hours" },
-      categories: [
-        { key: "infection_control", label: "Infection Control / OSHA" },
-        { key: "ethics_jurisprudence", label: "Ethics & Jurisprudence" },
-        { key: "opioid_pain", label: "Opioid / Pain Management" },
-        { key: "cpr_bls", label: "CPR / BLS / ACLS" },
-        { key: "pharmacology", label: "Pharmacology" },
-        { key: "radiography", label: "Radiography" },
-        { key: "patient_safety", label: "Patient Safety" },
-        { key: "clinical_didactic", label: "Clinical / Didactic" },
-        { key: "practice_management", label: "Practice Management" },
-        { key: "dental_materials", label: "Dental Materials" },
-      ],
-      topics: [
-        { key: "opioid_pain", label: "Opioid Prescribing" },
-        { key: "ethics_jurisprudence", label: "Ethics & Jurisprudence" },
-        { key: "infection_control", label: "Infection Control" },
-        { key: "child_abuse", label: "Child Abuse Recognition" },
-        { key: "cultural_competency", label: "Cultural Competency" },
-      ],
-    },
   },
   // Professional opportunities relevant to dentistry
   opportunityTypes: [

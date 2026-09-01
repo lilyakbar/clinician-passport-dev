@@ -9,16 +9,6 @@
       "type": "string",
       "default": "dentistry"
     },
-    "credential_type": {
-      "type": "string"
-    },
-    "issuing_body": {
-      "type": "string"
-    },
-    "cycle_start_date": {
-      "type": "string",
-      "format": "date"
-    },
     "requirements": {
       "type": "string"
     },
