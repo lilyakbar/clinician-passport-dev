@@ -148,6 +148,38 @@ function resolveJurisdiction(rawJur, stateNames, normalizedText) {
   return abbr;
 }
 
+// Diagnostic-only helpers (used solely when the caller passes debug: true).
+// Each returns a short reason string explaining why an item would be rejected
+// by its gate, or null if the item would pass. They never run in normal mode.
+function credentialDropReason(item, recognized, aliases, needsJurisdiction, stateNames, normalizedText) {
+  if (!item) return "item is null/undefined";
+  if (!item.name) return "missing name";
+  if (!item.credential_type) return "missing credential_type";
+  const normalizedType = normalizeCredentialType(item.credential_type, recognized, aliases);
+  if (!normalizedType) return `credential_type "${item.credential_type}" not recognized (no canonical or alias match)`;
+  if (needsJurisdiction.includes(normalizedType)) {
+    const resolved = resolveJurisdiction(item.jurisdiction, stateNames, normalizedText);
+    if (!resolved) return `jurisdiction "${item.jurisdiction || "(empty)"}" could not be resolved or grounded for ${normalizedType}`;
+  }
+  return null;
+}
+
+function ceDropReason(item) {
+  if (!item) return "item is null/undefined";
+  if (!item.title) return "missing title";
+  const quote = normalizeForGrounding(item.source_quote || "");
+  if (!quote) return "missing or empty source_quote";
+  const ceLanguage = /\b(?:ce|cde)\s*(?:hour|credit)s?\b/.test(quote)
+    || /\b(?:hour|credit)s?\s*(?:ce|cde)\b/.test(quote)
+    || /\bcontinuing\s+education\b/.test(quote);
+  if (!ceLanguage) return "no explicit CE/CDE/continuing-education language in source_quote";
+  const numMatch = quote.match(/(\d+(?:\.\d+)?)\s*(?:ce|cde)?\s*(?:hour|credit)s?/);
+  if (!numMatch) return "no numeric credit/hour amount found in source_quote";
+  const c = Number(numMatch[1]);
+  if (!(typeof c === "number" && !isNaN(c) && c > 0)) return `parsed credit amount is not a positive number (${c})`;
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Extraction schema — every record carries a verbatim source_quote that must
 // exist in the extracted document text, or the record is rejected.
@@ -358,7 +390,8 @@ export default async function(req: Request): Promise<Response> {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { file_uri, file_name, profession, credential_types, jurisdiction_required_types, state_names, credential_type_aliases } = await req.json();
+    const { file_uri, file_name, profession, credential_types, jurisdiction_required_types, state_names, credential_type_aliases, debug } = await req.json();
+    const debugMode = debug === true;
     if (!file_uri) return Response.json({ error: 'file_uri is required' }, { status: 400 });
 
     // 1. File-type safety: only PDF and DOCX are accepted.
@@ -450,18 +483,34 @@ CRITICAL RULES:
     }
     grounded.profile = profile;
 
+    const drops = [];
     for (const sectionKey of Object.keys(ENTITY_MAP)) {
       const items = Array.isArray(raw[sectionKey]) ? raw[sectionKey] : [];
       const kept = [];
       for (const item of items) {
         if (!item || typeof item !== "object") continue;
-        if (!isGrounded(item.source_quote, normalizedText)) continue; // unsupported -> reject
+        if (!isGrounded(item.source_quote, normalizedText)) {
+          if (debugMode && (sectionKey === "credentials" || sectionKey === "continuing_education")) {
+            drops.push({
+              stage: "grounding",
+              section: sectionKey,
+              item: { ...item },
+              reason: "source_quote not found verbatim in extracted document text"
+            });
+          }
+          continue; // unsupported -> reject
+        }
         // Keep the source_quote on CE items so the CE gate can verify explicit
         // credit/hour language in the grounded text; it is stripped after gating.
         kept.push(sectionKey === "continuing_education" ? { ...item } : stripQuote(item));
       }
       grounded[sectionKey] = kept;
     }
+
+    // Diagnostic snapshot: deep copy of grounded state after grounding, before gates.
+    // The gates below mutate item objects in place, so this copy preserves the
+    // pre-gate values (e.g. the LLM's original credential_type before normalization).
+    const groundedPreGate = debugMode ? JSON.parse(JSON.stringify(grounded)) : null;
 
     // Section-specific trust gates (run after grounding, before dedup).
 
@@ -473,6 +522,7 @@ CRITICAL RULES:
       const aliases = credential_type_aliases && typeof credential_type_aliases === "object" ? credential_type_aliases : null;
       const needsJurisdiction = Array.isArray(jurisdiction_required_types) ? jurisdiction_required_types : [];
       const stateNames = state_names && typeof state_names === "object" ? state_names : null;
+      const preGateCreds = debugMode ? [...grounded.credentials] : null;
       grounded.credentials = grounded.credentials.filter((item) => {
         if (!item || !item.name || !item.credential_type) return false;
         const normalizedType = normalizeCredentialType(item.credential_type, recognized, aliases);
@@ -488,12 +538,25 @@ CRITICAL RULES:
         }
         return true;
       });
+      if (debugMode && preGateCreds) {
+        for (const item of preGateCreds) {
+          if (!grounded.credentials.includes(item)) {
+            drops.push({
+              stage: "credential_gate",
+              section: "credentials",
+              item: { ...item },
+              reason: credentialDropReason(item, recognized, aliases, needsJurisdiction, stateNames, normalizedText)
+            });
+          }
+        }
+      }
     }
 
     // Continuing Education: only when the text explicitly states a positive
     // CE/CDE credit/hour amount. The LLM is instructed to route accordingly;
     // this gate is the backstop that drops creditless items.
     if (Array.isArray(grounded.continuing_education)) {
+      const preGateCE = debugMode ? [...grounded.continuing_education] : null;
       grounded.continuing_education = grounded.continuing_education.filter((item) => {
         if (!item || !item.title) return false;
         const quote = normalizeForGrounding(item.source_quote || "");
@@ -512,6 +575,18 @@ CRITICAL RULES:
         delete item.source_quote;
         return true;
       });
+      if (debugMode && preGateCE) {
+        for (const item of preGateCE) {
+          if (!grounded.continuing_education.includes(item)) {
+            drops.push({
+              stage: "ce_gate",
+              section: "continuing_education",
+              item: { ...item },
+              reason: ceDropReason(item)
+            });
+          }
+        }
+      }
     }
 
     const import_batch_id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
@@ -534,12 +609,21 @@ CRITICAL RULES:
       }));
     }
 
-    return Response.json({
+    const response = {
       extracted: grounded,
       matches,
       import_batch_id,
       source_document_name: file_name || ""
-    });
+    };
+    if (debugMode) {
+      response.diagnostic = {
+        raw_llm_output: raw,
+        post_grounding_pre_gate: groundedPreGate,
+        post_gate: grounded,
+        drops
+      };
+    }
+    return Response.json(response);
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

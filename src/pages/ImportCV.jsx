@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import PageHeader from "@/components/PageHeader";
 import { MatchSectionReview } from "@/components/importcv/MatchSectionReview";
+import DiagnosticPanel from "@/components/importcv/DiagnosticPanel";
 import {
   Upload, FileText, CheckCircle2, Loader2,
   User, Briefcase, GraduationCap,
@@ -43,6 +44,8 @@ export default function ImportCV() {
   const [sourceDocName, setSourceDocName] = useState("");
   const [dragging, setDragging] = useState(false);
   const [importStats, setImportStats] = useState(null);
+  const [debugMode, setDebugMode] = useState(false);
+  const [diagnostic, setDiagnostic] = useState(null);
 
   const handleFile = useCallback(async (file) => {
     if (!file) return;
@@ -59,8 +62,10 @@ export default function ImportCV() {
         jurisdiction_required_types,
         state_names: professionModule.stateNames || {},
         credential_type_aliases: professionModule.credentialTypeAliases || {},
+        debug: debugMode,
       });
       const data = res.data;
+      setDiagnostic(data?.diagnostic || null);
       if (data?.error) throw new Error(data.error);
       if (!data?.extracted) throw new Error("No data extracted from document.");
       setExtracted(data.extracted);
@@ -88,7 +93,7 @@ export default function ImportCV() {
       toast({ title: "Extraction failed", description: backendError || e.message, variant: "destructive" });
       setStage("upload");
     }
-  }, []);
+  }, [debugMode]);
 
   const onDrop = useCallback((e) => {
     e.preventDefault();
@@ -206,6 +211,7 @@ export default function ImportCV() {
     setImportStats(null);
     setImportBatchId(null);
     setSourceDocName("");
+    setDiagnostic(null);
   };
 
   return (
@@ -243,6 +249,18 @@ export default function ImportCV() {
               <FileText className="h-4 w-4" /> Browse file
             </Button>
           </label>
+
+          <div className="mt-6 flex items-center justify-end">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={debugMode}
+                onChange={(e) => setDebugMode(e.target.checked)}
+                className="h-3.5 w-3.5 accent-warning"
+              />
+              Debug mode — trace extraction pipeline (temporary)
+            </label>
+          </div>
 
           <div className="mt-6 grid sm:grid-cols-3 gap-4 text-center">
             {[
@@ -284,6 +302,10 @@ export default function ImportCV() {
               <Button onClick={handleImport}>Apply to Passport</Button>
             </div>
           </div>
+
+          {debugMode && diagnostic && (
+            <DiagnosticPanel diagnostic={diagnostic} />
+          )}
 
           <div className="space-y-3">
             {SECTION_META.map((meta) => {
