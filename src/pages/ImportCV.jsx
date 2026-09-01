@@ -132,12 +132,22 @@ export default function ImportCV() {
             await reload();
           }
         } else {
+          // In-memory profile missing — query DB before creating to avoid duplicates
+          let existing = [];
+          try { existing = await base44.entities.Profile.list("-created_date", 20); } catch (_) { existing = []; }
+          const found = (existing || []).find((r) => r.profession === professionKey)
+            || (existing || []).find((r) => r.profession === "dentistry")
+            || (existing || [])[0];
           const merged = {};
           PROFILE_FIELDS.forEach((f) => {
             const cvVal = p[f];
             if (hasVal(cvVal)) merged[f] = cvVal;
           });
-          await base44.entities.Profile.create({ profession: "dentistry", ...merged });
+          if (found) {
+            await base44.entities.Profile.update(found.id, merged);
+          } else {
+            await base44.entities.Profile.create({ profession: professionKey || "dentistry", ...merged });
+          }
           stats.profile = 1;
           await reload();
         }
