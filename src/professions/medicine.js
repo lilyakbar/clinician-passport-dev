@@ -75,6 +75,7 @@ export const medicine = {
     "Other",
   ],
   ce: {
+    tabLabel: "CME",
     unitLabel: "CME credits",
     creditLabel: "AMA PRA Category 1 Credits",
     recordLabel: "CME Activity",

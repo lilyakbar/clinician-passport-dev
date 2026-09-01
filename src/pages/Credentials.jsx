@@ -120,7 +120,7 @@ export default function Credentials() {
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-4 text-sm">
                 {c.issuing_body && <div><span className="text-muted-foreground text-xs">Issuer: </span>{c.issuing_body}</div>}
-                {c.jurisdiction && <div><span className="text-muted-foreground text-xs">Jurisdiction: </span>{c.jurisdiction}</div>}
+                {c.jurisdiction && <div><span className="text-muted-foreground text-xs">{professionModule.jurisdictionLabel || "Jurisdiction"}: </span>{c.jurisdiction}</div>}
                 {c.license_number && <div><span className="text-muted-foreground text-xs">Number: </span>{c.license_number}</div>}
                 <div><span className="text-muted-foreground text-xs">Issued: </span>{fmt(c.issue_date)}</div>
                 <div><span className="text-muted-foreground text-xs">Expires: </span>{fmt(c.expiration_date)}</div>

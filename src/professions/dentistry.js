@@ -3,11 +3,16 @@
 // Additional profession modules (physicians, PAs, NPs, nurses, pharmacists, PT, OT, etc.)
 // follow the same shape and register in src/professions/index.js.
 
+import { stateNames } from "./stateNames";
+
 export const dentistry = {
   key: "dentistry",
   label: "Dentistry",
   tagline: "Licensed dental professional",
   badge: "Flagship",
+  // User-facing label for the backend `jurisdiction` field — dentistry uses "State".
+  jurisdictionLabel: "State",
+  stateNames,
   // Profession-specific credential types (NOT shared across professions)
   credentialTypes: [
     "Doctor of Dental Surgery (DDS)",
@@ -34,6 +39,8 @@ export const dentistry = {
       description: "State-issued license to practice dentistry.",
       numberLabel: "License Number",
       critical: true,
+      requiresJurisdiction: true,
+      nameTemplate: "{state} Dental License",
     },
     "DEA Registration": {
       issuingBody: "Drug Enforcement Administration (DEA)",
@@ -76,6 +83,8 @@ export const dentistry = {
       description: "State permit for moderate/conscious sedation administration.",
       numberLabel: "Permit Number",
       critical: true,
+      requiresJurisdiction: true,
+      nameTemplate: "{state} Sedation Permit",
     },
     "Nitrous Oxide Permit": {
       issuingBody: "State Board of Dentistry",
@@ -83,6 +92,8 @@ export const dentistry = {
       description: "State permit for nitrous oxide administration.",
       numberLabel: "Permit Number",
       critical: true,
+      requiresJurisdiction: true,
+      nameTemplate: "{state} Nitrous Oxide Permit",
     },
     "Specialty Board Certification": {
       issuingBody: "Specialty Board",
@@ -133,6 +144,7 @@ export const dentistry = {
   ],
   // Continuing education terminology specific to dentistry
   ce: {
+    tabLabel: "CE",
     unitLabel: "CE hours",
     creditLabel: "CE credits",
     recordLabel: "Continuing Education Course",

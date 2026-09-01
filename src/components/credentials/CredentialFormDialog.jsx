@@ -33,6 +33,12 @@ export default function CredentialFormDialog({ open, onOpenChange, editing, prof
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
+  const tpl = professionModule.credentialTemplates?.[form.credential_type];
+  const professionUsesJurisdictionFlag = Object.values(professionModule.credentialTemplates || {}).some((t) => t.requiresJurisdiction === true);
+  const showJurisdiction = !professionUsesJurisdictionFlag || tpl?.requiresJurisdiction === true;
+  const jurisdictionRequired = tpl?.requiresJurisdiction === true;
+  const jurisdictionLabel = professionModule.jurisdictionLabel || "Jurisdiction";
+
   useEffect(() => {
     if (!open) return;
     if (editing) {
@@ -46,6 +52,7 @@ export default function CredentialFormDialog({ open, onOpenChange, editing, prof
 
   const save = async () => {
     if (!form.name || !form.credential_type) { toast({ title: "Name and type are required", variant: "destructive" }); return; }
+    if (jurisdictionRequired && !form.jurisdiction) { toast({ title: `${jurisdictionLabel} is required for this credential type`, variant: "destructive" }); return; }
     setSaving(true);
     try {
       const days = daysUntil(form.expiration_date);
@@ -72,8 +79,12 @@ export default function CredentialFormDialog({ open, onOpenChange, editing, prof
             <Label>Credential Type *</Label>
             <Select value={form.credential_type ?? ""} onValueChange={(v) => {
               setField("credential_type", v);
-              const tpl = professionModule.credentialTemplates?.[v];
-              if (tpl && !form.issuing_body) setField("issuing_body", tpl.issuingBody);
+              const newTpl = professionModule.credentialTemplates?.[v];
+              if (newTpl && !form.issuing_body) setField("issuing_body", newTpl.issuingBody);
+              if (newTpl?.nameTemplate && !form.name && form.jurisdiction) {
+                const stateName = professionModule.stateNames?.[form.jurisdiction];
+                if (stateName) setField("name", newTpl.nameTemplate.replace("{state}", stateName));
+              }
             }}>
               <SelectTrigger><SelectValue placeholder="Select type…" /></SelectTrigger>
               <SelectContent>
@@ -84,14 +95,11 @@ export default function CredentialFormDialog({ open, onOpenChange, editing, prof
                 ))}
               </SelectContent>
             </Select>
-            {(() => {
-              const tpl = professionModule.credentialTemplates?.[form.credential_type];
-              return tpl?.description ? (
-                <p className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <ShieldCheck className="h-3 w-3 text-accent shrink-0 mt-0.5" /> {tpl.description}
-                </p>
-              ) : null;
-            })()}
+            {tpl?.description && (
+              <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-accent shrink-0 mt-0.5" /> {tpl.description}
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>Issuing Body</Label>
@@ -106,15 +114,23 @@ export default function CredentialFormDialog({ open, onOpenChange, editing, prof
             <Label>{professionModule.credentialTemplates?.[form.credential_type]?.numberLabel || "License / ID Number"}</Label>
             <Input value={form.license_number ?? ""} onChange={(e) => setField("license_number", e.target.value)} />
           </div>
-          <div className="space-y-1.5">
-            <Label>Jurisdiction</Label>
-            <Select value={form.jurisdiction ?? ""} onValueChange={(v) => setField("jurisdiction", v)}>
-              <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-              <SelectContent>
-                {professionModule.jurisdictions.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+          {showJurisdiction && (
+            <div className="space-y-1.5">
+              <Label>{jurisdictionLabel}{jurisdictionRequired ? " *" : ""}</Label>
+              <Select value={form.jurisdiction ?? ""} onValueChange={(v) => {
+                setField("jurisdiction", v);
+                if (tpl?.nameTemplate && !form.name) {
+                  const stateName = professionModule.stateNames?.[v];
+                  if (stateName) setField("name", tpl.nameTemplate.replace("{state}", stateName));
+                }
+              }}>
+                <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>
+                  {professionModule.jurisdictions.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Issue Date</Label>
             <Input type="date" value={form.issue_date ?? ""} onChange={(e) => setField("issue_date", e.target.value)} />

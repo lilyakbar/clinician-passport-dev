@@ -3,8 +3,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Credentials from "@/pages/Credentials";
 import ContinuingEducation from "@/pages/ContinuingEducation";
 import ComplianceIntelligence from "@/pages/ComplianceIntelligence";
+import { useProfession } from "@/professions/ProfessionContext";
 
 export default function CredentialsCE() {
+  const { professionModule } = useProfession();
   return (
     <div className="space-y-6">
       <div>
@@ -19,7 +21,7 @@ export default function CredentialsCE() {
       <Tabs defaultValue="credentials" className="w-full">
         <TabsList className="h-auto">
           <TabsTrigger value="credentials">Licenses &amp; Credentials</TabsTrigger>
-          <TabsTrigger value="ce">CE / CME</TabsTrigger>
+          <TabsTrigger value="ce">{professionModule.ce.tabLabel || "CE"}</TabsTrigger>
           <TabsTrigger value="compliance">Compliance</TabsTrigger>
         </TabsList>
         <TabsContent value="credentials">
