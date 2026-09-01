@@ -154,6 +154,36 @@ export const dentistry = {
     typicalAnnualHours: 20,
     typicalCycleYears: 2,
   },
+  // Canonical requirement keys for CE-to-compliance mapping (Model C).
+  // Stable internal keys so CeApplicability links survive requirement label changes.
+  // Mirrors base44/shared/requirementKeys.ts for frontend use.
+  requirementKeys: {
+    overall: "overall",
+    categories: [
+      { key: "clinical_didactic", label: "Clinical / Didactic" },
+      { key: "practice_management", label: "Practice Management" },
+      { key: "infection_control_osha", label: "Infection Control / OSHA" },
+      { key: "ethics_jurisprudence", label: "Ethics & Jurisprudence" },
+      { key: "pharmacology", label: "Pharmacology" },
+      { key: "radiography", label: "Radiography" },
+      { key: "cpr_bls_acls", label: "CPR / BLS / ACLS" },
+      { key: "patient_safety", label: "Patient Safety" },
+      { key: "opioid_pain_management", label: "Opioid / Pain Management" },
+      { key: "dental_materials", label: "Dental Materials" },
+    ],
+    topics: [
+      { key: "opioid_prescribing", label: "Opioid Prescribing" },
+      { key: "infection_control", label: "Infection Control" },
+      { key: "ethics", label: "Ethics" },
+      { key: "jurisprudence", label: "Jurisprudence" },
+      { key: "cpr", label: "CPR" },
+      { key: "bls", label: "BLS" },
+      { key: "pain_management", label: "Pain Management" },
+      { key: "child_abuse_recognition", label: "Child Abuse Recognition" },
+      { key: "domestic_violence", label: "Domestic Violence" },
+      { key: "cultural_competency", label: "Cultural Competency" },
+    ],
+  },
   // Professional opportunities relevant to dentistry
   opportunityTypes: [
     "Associate Dentist",
