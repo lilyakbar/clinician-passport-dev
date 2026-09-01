@@ -58,7 +58,11 @@ export default function QuickCaptureDialog({ open, onOpenChange }) {
     const errors = [];
     for (const c of candidates) {
       try {
-        await base44.entities[c.entity].create({ ...c.fields });
+        const payload = { ...c.fields };
+        if (c.entity === "Credential" || c.entity === "ContinuingEducation") {
+          payload.profession = professionModule.key;
+        }
+        await base44.entities[c.entity].create(payload);
         saved++;
       } catch (e) {
         errors.push(c.entity);

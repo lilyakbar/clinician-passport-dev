@@ -8,14 +8,16 @@ import {
   CheckCircle2, UploadCloud, ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useProfession } from "@/professions/ProfessionContext";
 
 export default function SetupGuide({ creds, positions, ce, goals, docs }) {
+  const { professionModule } = useProfession();
   const hasLicense = (creds || []).some(c => (c.credential_type || "").toLowerCase().includes("license"));
   const sections = [
     { key: "career", label: "Career History", icon: Briefcase, done: (positions || []).length > 0, to: "/career-history" },
     { key: "licenses", label: "Licenses", icon: Award, done: hasLicense, to: "/credentials" },
     { key: "credentials", label: "Credentials", icon: ShieldCheck, done: (creds || []).length > 0, to: "/credentials" },
-    { key: "ce", label: "CE / CME", icon: BookMarked, done: (ce || []).length > 0, to: "/continuing-education" },
+    { key: "ce", label: professionModule?.ce?.tabLabel || "CE / CME", icon: BookMarked, done: (ce || []).length > 0, to: "/continuing-education" },
     { key: "documents", label: "Documents", icon: FileText, done: (docs || []).length > 0, to: "/documents" },
     { key: "goals", label: "Goals", icon: Target, done: (goals || []).length > 0, to: "/goals" },
   ];
