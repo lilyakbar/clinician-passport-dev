@@ -39,6 +39,16 @@ export default function ComplianceIntelligence() {
 
   useEffect(() => { load(); }, [professionModule.key]);
 
+  const handleConfirmSuggestion = async (id) => {
+    await base44.entities.CeApplicability.update(id, { status: "confirmed" });
+    load(false);
+  };
+
+  const handleRejectSuggestion = async (id) => {
+    await base44.entities.CeApplicability.update(id, { status: "rejected" });
+    load(false);
+  };
+
   if (loading && !data) {
     return (
       <div className="flex justify-center py-24">
@@ -117,7 +127,12 @@ export default function ComplianceIntelligence() {
       {/* Jurisdiction cards */}
       <div className="grid lg:grid-cols-2 gap-5">
         {jurisdictions.map((j) => (
-          <JurisdictionCard key={j.jurisdiction} data={j} />
+          <JurisdictionCard
+            key={j.jurisdiction}
+            data={j}
+            onConfirmSuggestion={handleConfirmSuggestion}
+            onRejectSuggestion={handleRejectSuggestion}
+          />
         ))}
       </div>
 

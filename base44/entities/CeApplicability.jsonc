@@ -1,53 +1,38 @@
 {
-  "name": "ComplianceProfile",
+  "name": "CeApplicability",
   "type": "object",
   "properties": {
-    "jurisdiction": {
+    "ce_id": {
       "type": "string"
     },
-    "profession": {
-      "type": "string",
-      "default": "dentistry"
-    },
-    "credential_type": {
+    "credential_id": {
       "type": "string"
     },
-    "issuing_body": {
+    "requirement_key": {
       "type": "string"
     },
-    "cycle_start_date": {
-      "type": "string",
-      "format": "date"
+    "credits_applied": {
+      "type": "number",
+      "default": 0
     },
-    "requirements": {
-      "type": "string"
-    },
-    "source_name": {
-      "type": "string"
-    },
-    "source_url": {
-      "type": "string"
-    },
-    "official": {
-      "type": "boolean",
-      "default": false
-    },
-    "last_checked": {
-      "type": "string",
-      "format": "date"
-    },
-    "verification_status": {
+    "status": {
       "type": "string",
       "enum": [
-        "verified",
-        "unverified"
+        "ai_suggested",
+        "confirmed",
+        "rejected"
       ],
-      "default": "unverified"
+      "default": "ai_suggested"
+    },
+    "source": {
+      "type": "string",
+      "default": "ai"
     }
   },
   "required": [
-    "jurisdiction",
-    "profession"
+    "ce_id",
+    "credential_id",
+    "requirement_key"
   ],
   "rls": {
     "read": {
