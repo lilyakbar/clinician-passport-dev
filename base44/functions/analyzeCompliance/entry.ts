@@ -260,32 +260,37 @@ Only include requirements you can verify from current authoritative sources. If 
           }
         });
 
-        // Overall + category hours with per-CE cap (credits_applied cannot exceed CE.credits)
+        // Per-CE, per-bucket independent caps.
+        // Each requirement key (overall / each category) may receive up to ceCredits
+        // independently; one bucket does not reduce another. Duplicate links for the
+        // same CE + requirement key are summed then capped at ceCredits.
         for (const [ceId, links] of Object.entries(linksByCE)) {
           const ce = ceMap[ceId];
           if (!ce) continue;
           const ceCredits = Number(ce.credits) || 0;
 
-          const nonTopicLinks = links.filter(l => !l.requirement_key.startsWith("topic:"));
-          const totalAllocated = nonTopicLinks.reduce((s, l) => s + (Number(l.credits_applied) || 0), 0);
-          if (totalAllocated <= 0) continue;
-
-          // Cap: if over-allocated, scale proportionally so sum = ceCredits
-          const scale = totalAllocated > ceCredits ? ceCredits / totalAllocated : 1;
-
-          nonTopicLinks.forEach(link => {
-            const effective = (Number(link.credits_applied) || 0) * scale;
-            if (link.requirement_key === RESERVED_OVERALL_KEY) {
-              overallHours += effective;
-            } else if (link.requirement_key.startsWith("category:")) {
-              const k = link.requirement_key;
-              categoryHoursMap[k] = (categoryHoursMap[k] || 0) + effective;
-            }
+          // Sum credits by requirement key within this CE (dedupes duplicate links)
+          const byKey: Record<string, number> = {};
+          links.forEach(link => {
+            if (link.requirement_key.startsWith("topic:")) return;
+            const k = link.requirement_key;
+            byKey[k] = (byKey[k] || 0) + (Number(link.credits_applied) || 0);
           });
+
+          for (const [key, allocated] of Object.entries(byKey)) {
+            const effective = Math.min(allocated, ceCredits);
+            if (effective <= 0) continue;
+            if (key === RESERVED_OVERALL_KEY) {
+              overallHours += effective;
+            } else if (key.startsWith("category:")) {
+              categoryHoursMap[key] = (categoryHoursMap[key] || 0) + effective;
+            }
+          }
         }
 
-        // Total eligible = overall + category (disjoint by per-CE cap, no double counting)
-        totalDocHours = overallHours + Object.values(categoryHoursMap).reduce((s, v) => s + v, 0);
+        // Overall total counts confirmed overall-link credits only.
+        // Category credits satisfy their own category requirements and never inflate the overall total.
+        totalDocHours = overallHours;
 
         categoryAnalysis = (requirements.categories || []).map((cat: any) => {
           const docHours = categoryHoursMap[cat.canonical_key] || 0;
