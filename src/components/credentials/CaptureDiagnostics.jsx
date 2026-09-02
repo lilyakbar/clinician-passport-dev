@@ -19,17 +19,17 @@ export default function CaptureDiagnostics({ debug }) {
           <div className="text-muted-foreground">{c.reason}</div>
           {c.source_quote && <div className="text-muted-foreground italic truncate">quote: &ldquo;{c.source_quote}&rdquo;</div>}
           {c.raw && (
-            <div className="text-muted-foreground">
+            <div className="text-muted-foreground break-all">
               <span className="font-medium">raw:</span> {JSON.stringify(c.raw)}
             </div>
           )}
           {c.postGrounding && (
-            <div className="text-muted-foreground">
+            <div className="text-muted-foreground break-all">
               <span className="font-medium">post-grounding:</span> {JSON.stringify(c.postGrounding)}
             </div>
           )}
           {c.validated && (
-            <div className="text-foreground">
+            <div className="text-foreground break-all">
               <span className="font-medium">validated:</span> {JSON.stringify(c.validated)}
             </div>
           )}

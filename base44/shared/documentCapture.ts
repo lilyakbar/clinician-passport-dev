@@ -260,6 +260,7 @@ const DISCLAIMER_SUBSTRINGS = [
   "fictional test data", "test data only", "for testing purposes",
   "dummy data", "placeholder data", "this is a test",
   "fictional data", "synthetic data", "sample data only",
+  "fictional test document for clinician passport only",
 ];
 
 // Blank string fields whose value is a placeholder phrase or a test/disclaimer

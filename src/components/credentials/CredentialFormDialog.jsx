@@ -144,7 +144,10 @@ export default function CredentialFormDialog({ open, onOpenChange, editing, prof
             <Select value={form.issuing_body ?? ""} onValueChange={(v) => setField("issuing_body", v)}>
               <SelectTrigger><SelectValue placeholder="Select body…" /></SelectTrigger>
               <SelectContent>
-                {professionModule.issuingBodies.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                {Array.from(new Set([
+                  ...professionModule.issuingBodies,
+                  ...(form.issuing_body ? [form.issuing_body] : []),
+                ])).map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
