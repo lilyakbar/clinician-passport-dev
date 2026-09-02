@@ -71,7 +71,11 @@ const matchers = {
     const degEq = normalizeStr(x.degree) === normalizeStr(e.degree);
     const instEq = normalizeStr(x.institution) === normalizeStr(e.institution);
     const ov = datesOverlap(x.start_date, x.end_date, e.start_date, e.end_date);
-    if (degEq && instEq && ov) return "duplicate";
+    // When degree + institution match exactly but date overlap can't be
+    // established because a start_date is missing on either side, fall back to
+    // matching end/completion years as a duplicate (mirrors Conference/CE).
+    const startMissing = !x.start_date || !e.start_date;
+    if (degEq && instEq && (ov || (startMissing && sameYear(x.end_date, e.end_date)))) return "duplicate";
     if (instEq && (similar(x.degree, e.degree) || ov)) return "possible";
     if (similar(x.institution, e.institution) && ov) return "possible";
     return null;
