@@ -107,6 +107,29 @@ function isTokenInText(token, normalizedText) {
   return normalizedText.split(" ").includes(t);
 }
 
+// Placeholder-date sanitization: treat sentinel values the LLM may emit when a
+// date is unknown (0000-00-00, "unknown", "not stated", "not provided", and
+// equivalents) as missing so they can never be persisted as real dates.
+const DATE_KEYS = ["start_date", "end_date", "date", "issue_date", "expiration_date", "completion_date", "publication_date"];
+
+function isPlaceholderDate(val) {
+  if (val === undefined || val === null) return true;
+  const s = String(val).trim();
+  if (!s) return true;
+  const lower = s.toLowerCase();
+  if (/^0{4}-0{2}-0{2}/.test(lower)) return true;
+  if (/^(unknown|not\s*stated|not\s*provided|not\s*applicable|not\s*known|unspecified|n\/?a|none|tbd|null|undefined)$/.test(lower)) return true;
+  return false;
+}
+
+function sanitizeItemDates(item) {
+  if (!item || typeof item !== "object") return item;
+  for (const k of DATE_KEYS) {
+    if (k in item && isPlaceholderDate(item[k])) item[k] = "";
+  }
+  return item;
+}
+
 // Conservative credential-type normalization: accept an exact canonical match
 // (case-insensitive) or an explicit alias from the profession's alias map.
 // Anything else returns null (the caller drops the record). No fuzzy matching.
@@ -125,9 +148,12 @@ function normalizeCredentialType(rawType, recognized, aliases) {
 
 // Resolve a state-issued credential jurisdiction. Accepts either the state
 // abbreviation or full state name from the LLM; verifies that one of those
-// forms appears as a token in the grounded source text; returns the canonical
-// abbreviation (or null if it cannot be resolved/grounded).
-function resolveJurisdiction(rawJur, stateNames, normalizedText) {
+// forms appears as a token in the credential's OWN grounded source_quote
+// (not elsewhere in the document); returns the canonical abbreviation
+// (or null if it cannot be resolved/grounded). A state can only be assigned
+// to a state-issued credential if that credential's own source text supports
+// that state — never because the same document mentions the state elsewhere.
+function resolveJurisdiction(rawJur, stateNames, normalizedScope) {
   if (!rawJur || !stateNames) return null;
   const val = String(rawJur).trim();
   if (!val) return null;
@@ -142,24 +168,25 @@ function resolveJurisdiction(rawJur, stateNames, normalizedText) {
     }
   }
   if (!abbr) return null;
-  const inText = isTokenInText(abbr, normalizedText)
-    || isTokenInText(stateNames[abbr], normalizedText);
-  if (!inText) return null;
+  const inScope = isTokenInText(abbr, normalizedScope)
+    || isTokenInText(stateNames[abbr], normalizedScope);
+  if (!inScope) return null;
   return abbr;
 }
 
 // Diagnostic-only helpers (used solely when the caller passes debug: true).
 // Each returns a short reason string explaining why an item would be rejected
 // by its gate, or null if the item would pass. They never run in normal mode.
-function credentialDropReason(item, recognized, aliases, needsJurisdiction, stateNames, normalizedText) {
+function credentialDropReason(item, recognized, aliases, needsJurisdiction, stateNames) {
   if (!item) return "item is null/undefined";
   if (!item.name) return "missing name";
   if (!item.credential_type) return "missing credential_type";
   const normalizedType = normalizeCredentialType(item.credential_type, recognized, aliases);
   if (!normalizedType) return `credential_type "${item.credential_type}" not recognized (no canonical or alias match)`;
   if (needsJurisdiction.includes(normalizedType)) {
-    const resolved = resolveJurisdiction(item.jurisdiction, stateNames, normalizedText);
-    if (!resolved) return `jurisdiction "${item.jurisdiction || "(empty)"}" could not be resolved or grounded for ${normalizedType}`;
+    const scope = normalizeForGrounding(item.source_quote || "");
+    const resolved = resolveJurisdiction(item.jurisdiction, stateNames, scope);
+    if (!resolved) return `jurisdiction "${item.jurisdiction || "(empty)"}" not supported by this credential's own source_quote for ${normalizedType}`;
   }
   return null;
 }
@@ -446,7 +473,7 @@ CRITICAL RULES:
 - If information is not present in the text, leave the field empty or omit the record.
 - If the supplied source text is insufficient for a section, return an empty array for that section rather than generating plausible information.
 - For every item and for the profile, include a "source_quote": a short verbatim excerpt copied directly from the source text above that supports the extracted information. The quote MUST be exact text that appears verbatim in the source document text.
-- Dates must be in YYYY-MM-DD format (use YYYY-01-01 if only year is known, YYYY-MM-01 if only month+year).
+- Dates must be in YYYY-MM-DD format (use YYYY-01-01 if only year is known, YYYY-MM-01 if only month+year). Never emit placeholder dates such as 0000-00-00, "unknown", "not stated", or "not provided" — if a date is not stated in the source text, leave that date field empty.
 - If a role says "Present" or is ongoing, set current: true and omit end_date.
 - For degrees, include the full degree name (e.g. "Doctor of Dental Medicine (DMD)").
 - For career_history, include residencies, fellowships, internships, and employment.
@@ -454,9 +481,10 @@ CRITICAL RULES:
 - Do NOT include personal contact info (phone, email, home address) in any field.
 - Location should be "City, State" format.
 - Credentials: extract ONLY professional licenses, permits, registrations, board certifications, and similar practice-authority credentials (e.g. state dental license, DEA registration, BLS/ACLS/PALS, NPI, sedation permit). Academic degrees such as DDS, DMD, BDS, or PhD are Education, NOT Credentials — never place them in credentials.
-- For credentials, set credential_type to one of exactly these values: ${(credential_types && credential_types.length) ? credential_types.join(", ") : "the recognized profession credential types"}. Do not invent or use any credential_type not in that list.
-- For credentials that require a state/jurisdiction (e.g. State Dental License, Sedation Permit, Nitrous Oxide Permit), only create the record if the source text explicitly names the state, and set jurisdiction to the US state abbreviation. If the state is not stated, omit that credential entirely.
-- For credentials, set status only when the text clearly indicates a lifecycle state (active, expiring, expired, pending, inactive); otherwise leave status empty. Never invent license numbers or expiration dates — only populate fields the text actually provides.
+- Scan the ENTIRE document for credentials, including short one-line certification entries (e.g. "BLS Provider — American Heart Association — Expiration: 2028-08-01", "ACLS", "PALS", "CPR", "DEA Registration", "NPI"). These often appear in a certifications/skills section, a header, or as a brief bullet. Capture every credential that names a recognized type, even when the entry is short or lacks a license number. Do not skip a credential merely because its line is terse.
+- For credentials, set credential_type to one of exactly these values: ${(credential_types && credential_types.length) ? credential_types.join(", ") : "the recognized profession credential types"}. Do not invent or use any credential_type not in that list. Map variants to the closest canonical type (e.g. "BLS Provider" or "Basic Life Support" -> "BLS Certification"; "ACLS" -> "ACLS Certification"; "PALS" -> "PALS Certification"; "CPR" -> "CPR Certification"; "DEA" or "DEA Number" -> "DEA Registration"; "NPI" -> "NPI Number").
+- For credentials that require a state/jurisdiction (e.g. State Dental License, Sedation Permit, Nitrous Oxide Permit), only create the record if that credential's OWN source text explicitly names the state, and set jurisdiction to the US state abbreviation. The state MUST appear within the source_quote you provide for that credential — never infer a state from a different line elsewhere in the document. If the state is not stated in that credential's own text, omit that credential entirely.
+- For credentials, set status only when the text clearly indicates a lifecycle state (active, expiring, expired, pending, inactive); otherwise leave status empty. Never invent license numbers or expiration dates — only populate fields the text actually provides. If an expiration date is stated, record it; otherwise leave expiration_date empty.
 - Continuing Education: place an item here ONLY if the source text explicitly states a CE/CDE credit or hour amount (e.g. "16 CE hours", "3 CDE credits", "8-hour continuing education course"). A conference, course, certification, or training item without an explicit credit/hour amount must NOT be placed in continuing_education — leave it in conferences, presentations, or career_history as appropriate. Always set credits to the numeric amount stated in the text.`,
       response_json_schema: EXTRACTION_SCHEMA
     });
@@ -500,9 +528,15 @@ CRITICAL RULES:
           }
           continue; // unsupported -> reject
         }
-        // Keep the source_quote on CE items so the CE gate can verify explicit
-        // credit/hour language in the grounded text; it is stripped after gating.
-        kept.push(sectionKey === "continuing_education" ? { ...item } : stripQuote(item));
+        // Sanitize placeholder dates on a copy so sentinel values are never
+        // persisted and the raw LLM output (used for debug) stays pristine.
+        // Keep the source_quote on CE and credential items so their gates can
+        // verify record-specific evidence (CE credit language; a state-issued
+        // credential's own jurisdiction). Quotes are stripped after gating.
+        const keepQuote = sectionKey === "continuing_education" || sectionKey === "credentials";
+        const keptItem = keepQuote ? { ...item } : stripQuote(item);
+        sanitizeItemDates(keptItem);
+        kept.push(keptItem);
       }
       grounded[sectionKey] = kept;
     }
@@ -529,7 +563,11 @@ CRITICAL RULES:
         if (!normalizedType) return false; // unsupported type
         item.credential_type = normalizedType;
         if (needsJurisdiction.includes(normalizedType)) {
-          const resolved = resolveJurisdiction(item.jurisdiction, stateNames, normalizedText);
+          // A state can only be assigned to a state-issued credential if that
+          // credential's OWN source_quote supports the state — never because
+          // the same document mentions the state on another line.
+          const scope = normalizeForGrounding(item.source_quote || "");
+          const resolved = resolveJurisdiction(item.jurisdiction, stateNames, scope);
           if (!resolved) return false;
           item.jurisdiction = resolved;
         }
@@ -545,11 +583,14 @@ CRITICAL RULES:
               stage: "credential_gate",
               section: "credentials",
               item: { ...item },
-              reason: credentialDropReason(item, recognized, aliases, needsJurisdiction, stateNames, normalizedText)
+              reason: credentialDropReason(item, recognized, aliases, needsJurisdiction, stateNames)
             });
           }
         }
       }
+      // Quotes were preserved through gating for record-scoped jurisdiction
+      // checks; strip them now so they are never persisted.
+      grounded.credentials = grounded.credentials.map((item) => stripQuote(item));
     }
 
     // Continuing Education: only when the text explicitly states a positive
