@@ -127,6 +127,23 @@ function yearInScope(year, normalizedScope) {
   return new RegExp(`\\b${year}\\b`).test(normalizedScope);
 }
 
+// Document-title/header terms that should never be accepted as a person's
+// full_name (e.g. "CLINICIAN", "CV", "TEST PASSPORT", "CURRICULUM VITAE").
+const TITLE_NAME_TERMS = new Set(["cv", "resume", "passport", "import", "test", "curriculum", "vitae"]);
+
+// Reject a proposed full_name that is a single token or that contains a
+// document-title/header term. Real names ("John Smith", "Dr. Jane Doe") pass.
+function isLikelyTitleName(name) {
+  const tokens = normalizeForGrounding(name).split(" ").filter(Boolean);
+  if (tokens.length < 2) return true;
+  return tokens.some((t) => TITLE_NAME_TERMS.has(t));
+}
+
+// January-1 literal patterns for credential date grounding: "01-01", "01/01",
+// "january 1", "jan 1", "january 1st", etc. Used to keep YYYY-01-01 only when
+// the credential's own source_quote genuinely supports January 1.
+const JAN1_RE = /(?:01[-/]01|jan(?:uary)?\s*0?1(?:st)?\b)/i;
+
 // Deterministic fallback for short life-support certifications the LLM
 // sometimes omits entirely. Restricted to BLS/ACLS/PALS/CPR. Uses the explicit
 // alias map only (no fuzzy matching) and the actual document line as the
@@ -135,6 +152,20 @@ function yearInScope(year, normalizedScope) {
 // numbers, or issuing bodies are fabricated — only name/type/quote.
 const FALLBACK_CREDENTIAL_TYPES = ["BLS Certification", "ACLS Certification", "PALS Certification", "CPR Certification"];
 const FALLBACK_MAX_LINE_LEN = 200;
+
+// Parse a full date literal (YYYY-MM-DD or MM/DD/YYYY) from a line, but only
+// when the line also contains one of the given date keywords. Requires a full
+// date (day present) — never synthesizes from a bare 4-digit year. Returns "".
+function parseLineDate(lineText, keywords) {
+  if (!lineText) return "";
+  const lower = lineText.toLowerCase();
+  if (!keywords.some((k) => lower.includes(k))) return "";
+  let m = lineText.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = lineText.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+  return "";
+}
 
 function buildCredentialFallback(documentText, aliases, recognized, alreadyPresent) {
   if (!documentText || !aliases || typeof aliases !== "object") return [];
@@ -158,7 +189,13 @@ function buildCredentialFallback(documentText, aliases, recognized, alreadyPrese
       const normLine = normalizeForGrounding(lineText);
       if (!normLine) continue;
       if (aliasKeys.some((a) => phraseTokensInText(a, normLine))) {
-        synthesized.push({ name: canonical, credential_type: canonical, source_quote: lineText });
+        synthesized.push({
+          name: canonical,
+          credential_type: canonical,
+          source_quote: lineText,
+          expiration_date: parseLineDate(lineText, ["expir", "valid until", "valid through", "renewal"]),
+          issue_date: parseLineDate(lineText, ["issu", "effective", "granted"]),
+        });
         break; // one record per canonical type
       }
     }
@@ -185,6 +222,36 @@ function sanitizeItemDates(item) {
   if (!item || typeof item !== "object") return item;
   for (const k of DATE_KEYS) {
     if (k in item && isPlaceholderDate(item[k])) item[k] = "";
+  }
+  return item;
+}
+
+// Placeholder string phrases and narrow test/disclaimer substrings that should
+// never reach review/import as real field values. Mirrors the frontend
+// placeholderValue set plus a few close variants.
+const PLACEHOLDER_STRING_PHRASES = new Set([
+  "not stated", "not provided", "not mentioned", "not specified",
+  "not applicable", "not available", "not known", "n/a",
+  "none", "unknown", "tbd",
+]);
+const DISCLAIMER_SUBSTRINGS = [
+  "fictional test data", "test data only", "for testing purposes",
+  "dummy data", "placeholder data", "this is a test",
+  "fictional data", "synthetic data", "sample data only",
+];
+
+// Blank string fields whose value is a placeholder phrase or a test/disclaimer
+// phrase. Never touches source_quote (grounding/gates need it) or non-string
+// fields. Runs after grounding validation, before section gates.
+function sanitizeItemStrings(item) {
+  if (!item || typeof item !== "object") return item;
+  for (const [k, v] of Object.entries(item)) {
+    if (k === "source_quote" || typeof v !== "string") continue;
+    const lower = v.trim().toLowerCase();
+    if (!lower) continue;
+    if (PLACEHOLDER_STRING_PHRASES.has(lower) || DISCLAIMER_SUBSTRINGS.some((s) => lower.includes(s))) {
+      item[k] = "";
+    }
   }
   return item;
 }
@@ -576,8 +643,10 @@ CRITICAL RULES:
       const p = raw.profile;
       if (isGrounded(p.source_quote, normalizedText)) {
         profile = { ...p };
-        // Drop full_name if it isn't actually in the document text.
-        if (p.full_name && !normalizedText.includes(normalizeForGrounding(p.full_name))) {
+        // Drop full_name if it isn't in the document text, or if it looks like
+        // a document title/header (single token, or contains CV/RESUME/PASSPORT/
+        // IMPORT/TEST/CURRICULUM VITAE terms) rather than a real person's name.
+        if (p.full_name && (!normalizedText.includes(normalizeForGrounding(p.full_name)) || isLikelyTitleName(p.full_name))) {
           delete profile.full_name;
         }
         delete profile.source_quote;
@@ -610,6 +679,7 @@ CRITICAL RULES:
         const keepQuote = sectionKey === "continuing_education" || sectionKey === "credentials";
         const keptItem = keepQuote ? { ...item } : stripQuote(item);
         sanitizeItemDates(keptItem);
+        sanitizeItemStrings(keptItem);
         kept.push(keptItem);
       }
       grounded[sectionKey] = kept;
@@ -653,7 +723,12 @@ CRITICAL RULES:
           if (!d) continue;
           const yearMatch = String(d).match(/(\d{4})/);
           const year = yearMatch ? yearMatch[1] : null;
-          if (!yearInScope(year, credScope)) item[dateKey] = "";
+          if (!yearInScope(year, credScope)) { item[dateKey] = ""; continue; }
+          // Reject year-only dates dressed as January 1: keep YYYY-01-01 only
+          // when this credential's own source_quote actually supports Jan 1.
+          if (/^\d{4}-01-01$/.test(String(d).trim()) && !JAN1_RE.test(item.source_quote || "")) {
+            item[dateKey] = "";
+          }
         }
         if (item.license_number && !isTokenInText(item.license_number, normalizedText)) {
           item.license_number = "";
