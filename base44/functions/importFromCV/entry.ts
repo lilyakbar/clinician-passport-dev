@@ -107,6 +107,65 @@ function isTokenInText(token, normalizedText) {
   return normalizedText.split(" ").includes(t);
 }
 
+// Token-sequence (phrase) containment — not fuzzy. Returns true only if the
+// phrase's normalized tokens appear consecutively in the normalized text.
+function phraseTokensInText(phrase, normalizedText) {
+  const pTokens = normalizeForGrounding(phrase).split(" ").filter(Boolean);
+  if (!pTokens.length) return false;
+  const textTokens = normalizedText.split(" ");
+  for (let i = 0; i + pTokens.length <= textTokens.length; i++) {
+    if (pTokens.every((t, j) => textTokens[i + j] === t)) return true;
+  }
+  return false;
+}
+
+// True if a 4-digit year appears in the normalized scope as a bounded number.
+// Word boundaries treat hyphens/space/punct as boundaries, so "2028" inside
+// "2028-08-01" or "Expiration: 2028" matches; "2023" inside "12023" does not.
+function yearInScope(year, normalizedScope) {
+  if (!year || !normalizedScope) return false;
+  return new RegExp(`\\b${year}\\b`).test(normalizedScope);
+}
+
+// Deterministic fallback for short life-support certifications the LLM
+// sometimes omits entirely. Restricted to BLS/ACLS/PALS/CPR. Uses the explicit
+// alias map only (no fuzzy matching) and the actual document line as the
+// source_quote. Synthesizes at most one record per canonical type, and only
+// when the LLM did not already extract that canonical type. No dates, license
+// numbers, or issuing bodies are fabricated — only name/type/quote.
+const FALLBACK_CREDENTIAL_TYPES = ["BLS Certification", "ACLS Certification", "PALS Certification", "CPR Certification"];
+const FALLBACK_MAX_LINE_LEN = 200;
+
+function buildCredentialFallback(documentText, aliases, recognized, alreadyPresent) {
+  if (!documentText || !aliases || typeof aliases !== "object") return [];
+  const typeToAliases = {};
+  for (const [aliasKey, canonical] of Object.entries(aliases)) {
+    if (FALLBACK_CREDENTIAL_TYPES.includes(canonical)) {
+      if (!typeToAliases[canonical]) typeToAliases[canonical] = [];
+      typeToAliases[canonical].push(aliasKey);
+    }
+  }
+  const lines = String(documentText).split(/\r?\n/);
+  const synthesized = [];
+  for (const canonical of FALLBACK_CREDENTIAL_TYPES) {
+    if (alreadyPresent.has(canonical)) continue;
+    if (recognized && !recognized.includes(canonical)) continue;
+    const aliasKeys = typeToAliases[canonical] || [];
+    if (!aliasKeys.length) continue;
+    for (const line of lines) {
+      const lineText = String(line).trim();
+      if (!lineText || lineText.length > FALLBACK_MAX_LINE_LEN) continue;
+      const normLine = normalizeForGrounding(lineText);
+      if (!normLine) continue;
+      if (aliasKeys.some((a) => phraseTokensInText(a, normLine))) {
+        synthesized.push({ name: canonical, credential_type: canonical, source_quote: lineText });
+        break; // one record per canonical type
+      }
+    }
+  }
+  return synthesized;
+}
+
 // Placeholder-date sanitization: treat sentinel values the LLM may emit when a
 // date is unknown (0000-00-00, "unknown", "not stated", "not provided", and
 // equivalents) as missing so they can never be persisted as real dates.
@@ -491,6 +550,21 @@ CRITICAL RULES:
 
     const raw = result || {};
 
+    // 4b. Deterministic fallback for missed BLS/ACLS/PALS/CPR lines: synthesize
+    // a credential from the actual document line when the LLM omitted that
+    // canonical type entirely. Synthesized records flow through the same
+    // grounding + credential gates below (including record-scoped date grounding).
+    {
+      const existingCreds = Array.isArray(raw.credentials) ? raw.credentials : [];
+      const fbRecognized = Array.isArray(credential_types) ? credential_types : null;
+      const fbAliases = credential_type_aliases && typeof credential_type_aliases === "object" ? credential_type_aliases : null;
+      const alreadyPresent = new Set(
+        existingCreds.map((c) => normalizeCredentialType(c?.credential_type, fbRecognized, fbAliases)).filter(Boolean)
+      );
+      const fallback = buildCredentialFallback(documentText, fbAliases, fbRecognized, alreadyPresent);
+      if (fallback.length) raw.credentials = [...existingCreds, ...fallback];
+    }
+
     // 5. Grounding validation: drop any record whose source_quote is not found
     // verbatim in the extracted document text. Quotes are not persisted.
     const grounded = {};
@@ -562,14 +636,24 @@ CRITICAL RULES:
         const normalizedType = normalizeCredentialType(item.credential_type, recognized, aliases);
         if (!normalizedType) return false; // unsupported type
         item.credential_type = normalizedType;
+        const credScope = normalizeForGrounding(item.source_quote || "");
         if (needsJurisdiction.includes(normalizedType)) {
           // A state can only be assigned to a state-issued credential if that
           // credential's OWN source_quote supports the state — never because
           // the same document mentions the state on another line.
-          const scope = normalizeForGrounding(item.source_quote || "");
-          const resolved = resolveJurisdiction(item.jurisdiction, stateNames, scope);
+          const resolved = resolveJurisdiction(item.jurisdiction, stateNames, credScope);
           if (!resolved) return false;
           item.jurisdiction = resolved;
+        }
+        // Record-scoped date grounding: keep issue_date / expiration_date only
+        // if that date's 4-digit year appears in this credential's OWN
+        // source_quote. Blanks invented dates whose source line has no year.
+        for (const dateKey of ["issue_date", "expiration_date"]) {
+          const d = item[dateKey];
+          if (!d) continue;
+          const yearMatch = String(d).match(/(\d{4})/);
+          const year = yearMatch ? yearMatch[1] : null;
+          if (!yearInScope(year, credScope)) item[dateKey] = "";
         }
         if (item.license_number && !isTokenInText(item.license_number, normalizedText)) {
           item.license_number = "";
