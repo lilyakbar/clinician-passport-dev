@@ -636,19 +636,30 @@ CRITICAL RULES:
     // verbatim in the extracted document text. Quotes are not persisted.
     const grounded = {};
 
-    // Profile: require a grounded quote; also require full_name (if present) to
-    // appear in the source text. Otherwise return an empty profile.
+    // Profile: every field must be grounded in the Profile item's OWN
+    // source_quote (not inferred from unrelated document content) and survive
+    // placeholder/disclaimer sanitization. full_name additionally must pass the
+    // title/header safeguards. If nothing genuine remains, the profile is empty
+    // (no changes) rather than invented or generalized.
     let profile = {};
     if (raw.profile && typeof raw.profile === "object") {
       const p = raw.profile;
-      if (isGrounded(p.source_quote, normalizedText)) {
+      const profQuote = normalizeForGrounding(p.source_quote || "");
+      if (profQuote && isGrounded(p.source_quote, normalizedText)) {
         profile = { ...p };
-        // Drop full_name if it isn't in the document text, or if it looks like
-        // a document title/header (single token, or contains CV/RESUME/PASSPORT/
-        // IMPORT/TEST/CURRICULUM VITAE terms) rather than a real person's name.
-        if (p.full_name && (!normalizedText.includes(normalizeForGrounding(p.full_name)) || isLikelyTitleName(p.full_name))) {
+        // full_name: keep only when the actual name appears in the profile's
+        // own source_quote AND passes the title/header safeguards.
+        if (p.full_name && (!profQuote.includes(normalizeForGrounding(p.full_name)) || isLikelyTitleName(p.full_name))) {
           delete profile.full_name;
         }
+        // specialty, location, credentials_string, bio: keep only when that
+        // specific value is directly supported by the profile's own source_quote.
+        for (const f of ["specialty", "location", "credentials_string", "bio"]) {
+          if (p[f] && !profQuote.includes(normalizeForGrounding(p[f]))) delete profile[f];
+        }
+        // Blank any remaining placeholder/disclaimer values (e.g. "None",
+        // "Not provided", "This document contains fictional test data only.").
+        sanitizeItemStrings(profile);
         delete profile.source_quote;
       }
     }
