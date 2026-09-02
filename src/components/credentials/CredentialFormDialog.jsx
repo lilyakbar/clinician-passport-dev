@@ -97,6 +97,15 @@ export default function CredentialFormDialog({ open, onOpenChange, editing, prof
           <div className="space-y-1.5">
             <div className="text-xs font-medium text-muted-foreground">Capture diagnostics (debug mode) — inspection only.</div>
             <CaptureDiagnostics debug={captureDebug} />
+            <div className="rounded-md border border-border bg-muted/40 p-2 text-xs space-y-1">
+              <div className="font-medium text-foreground">Form state diagnostics (debug mode) — inspection only.</div>
+              <div className="text-muted-foreground">
+                <span className="font-medium">prefill:</span> {JSON.stringify(prefill ?? null)}
+              </div>
+              <div className="text-foreground">
+                <span className="font-medium">form:</span> {JSON.stringify(form)}
+              </div>
+            </div>
           </div>
         )}
         <div className="grid grid-cols-2 gap-4 py-2">
