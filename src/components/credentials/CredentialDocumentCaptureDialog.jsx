@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, FileUp, X } from "lucide-react";
+import { Loader2, FileUp, X, Bug } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Drag-and-drop-only capture dialog (no native Browse button — avoids the
 // Radix Dialog focus-trap / file-picker conflict). Uploads the file to private
@@ -15,8 +16,10 @@ export default function CredentialDocumentCaptureDialog({ open, onOpenChange, pr
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [debug, setDebug] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
 
-  const reset = () => { setError(""); setDragOver(false); };
+  const reset = () => { setError(""); setDragOver(false); setDebugInfo(null); };
 
   const handleFile = async (file) => {
     if (!file) return;
@@ -47,7 +50,10 @@ export default function CredentialDocumentCaptureDialog({ open, onOpenChange, pr
         jurisdiction_required_types: jurisdictionRequiredTypes,
         state_names: professionModule.stateNames,
         credential_type_aliases: professionModule.credentialTypeAliases,
+        debug,
       });
+
+      if (res?.debug) setDebugInfo(res.debug);
 
       if (!res || !res.credential) {
         throw new Error(res?.error || "No supported credential could be extracted from this document.");
@@ -105,6 +111,31 @@ export default function CredentialDocumentCaptureDialog({ open, onOpenChange, pr
             <span>{error}</span>
           </div>
         )}
+        {debugInfo && (
+          <div className="max-h-56 overflow-y-auto rounded-md border border-border bg-muted/40 p-3 text-xs space-y-2">
+            <div className="flex items-center gap-1 font-medium text-foreground">
+              <Bug className="h-3.5 w-3.5" /> Debug — {debugInfo.candidateCount ?? 0} candidate(s), text {debugInfo.textLength ?? 0} chars
+            </div>
+            {(debugInfo.candidates || []).map((c, i) => (
+              <div key={i} className="space-y-0.5 border-t border-border pt-1.5">
+                <div><span className="font-medium">#{i + 1} stage:</span> <span className="text-foreground">{c.stage}</span></div>
+                <div className="text-muted-foreground">{c.reason}</div>
+                {c.source_quote && <div className="text-muted-foreground italic truncate">quote: &ldquo;{c.source_quote}&rdquo;</div>}
+                {c.dateNotes?.map((n, j) => <div key={j} className="text-warning">{n}</div>)}
+                {c.licenseNote && <div className="text-warning">{c.licenseNote}</div>}
+              </div>
+            ))}
+            {debugInfo.rawResult && (
+              <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap break-words border-t border-border pt-1.5">{JSON.stringify(debugInfo.rawResult, null, 1)}</pre>
+            )}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground select-none cursor-pointer">
+            <Checkbox checked={debug} onCheckedChange={(v) => setDebug(!!v)} disabled={busy} />
+            Debug mode
+          </label>
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange?.(false)} disabled={busy}>Cancel</Button>
         </DialogFooter>

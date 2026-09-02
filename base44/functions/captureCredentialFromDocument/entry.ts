@@ -3,6 +3,7 @@ import {
   MIN_MEANINGFUL_CHARS, detectFileType, extractPdfText, extractDocxText,
   normalizeForGrounding, isGrounded, sanitizeItemDates, sanitizeItemStrings,
   normalizeCredentialType, buildCredentialFallback, validateCredentialItem,
+  resolveJurisdiction, yearInScope, isTokenInText, JAN1_RE,
 } from "../../shared/documentCapture.ts";
 
 // ---------------------------------------------------------------------------
@@ -43,6 +44,47 @@ const CREDENTIAL_SCHEMA = {
   }
 };
 
+// Debug-only diagnostic: mirrors validateCredentialItem's gate order to
+// identify the exact stage at which a candidate is dropped. Read-only — calls
+// the same shared helpers, never mutates, never persists. Returns the first
+// rejecting stage (or "passed") plus informational date/license notes.
+function diagnoseCredential(item, ctx) {
+  const { recognized, aliases, needsJurisdiction, stateNames, normalizedText } = ctx || {};
+  if (!item || !item.name || !item.credential_type) {
+    return { stage: "missing_name_or_type", reason: "name or credential_type is empty" };
+  }
+  const normalizedType = normalizeCredentialType(item.credential_type, recognized, aliases);
+  if (!normalizedType) {
+    return { stage: "type_not_recognized", reason: `credential_type "${item.credential_type}" is not in the recognized list or alias map` };
+  }
+  const credScope = normalizeForGrounding(item.source_quote || "");
+  if (Array.isArray(needsJurisdiction) && needsJurisdiction.includes(normalizedType)) {
+    const resolved = resolveJurisdiction(item.jurisdiction, stateNames, credScope);
+    if (!resolved) {
+      return { stage: "jurisdiction_not_resolved", reason: `jurisdiction "${item.jurisdiction || ""}" could not be resolved or is not grounded in this credential's own source_quote (required for "${normalizedType}")` };
+    }
+  }
+  const dateNotes = [];
+  for (const dateKey of ["issue_date", "expiration_date"]) {
+    const d = item[dateKey];
+    if (!d) continue;
+    const yearMatch = String(d).match(/(\d{4})/);
+    const year = yearMatch ? yearMatch[1] : null;
+    if (!yearInScope(year, credScope)) {
+      dateNotes.push(`${dateKey} "${d}" blanked: year ${year} not found in this credential's source_quote`);
+      continue;
+    }
+    if (/^\d{4}-01-01$/.test(String(d).trim()) && !JAN1_RE.test(item.source_quote || "")) {
+      dateNotes.push(`${dateKey} "${d}" blanked: January-1 safeguard (no Jan-1 literal in source_quote)`);
+    }
+  }
+  let licenseNote = null;
+  if (item.license_number && !isTokenInText(item.license_number, normalizedText)) {
+    licenseNote = `license_number "${item.license_number}" blanked: not present as a token in the document text`;
+  }
+  return { stage: "passed", reason: "credential survived all gates", normalizedType, dateNotes, licenseNote };
+}
+
 export default async function(req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -52,7 +94,9 @@ export default async function(req: Request): Promise<Response> {
     const {
       file_uri, file_name, profession,
       credential_types, jurisdiction_required_types, state_names, credential_type_aliases,
+      debug,
     } = await req.json();
+    const debugMode = debug === true;
 
     if (!file_uri) return Response.json({ error: 'file_uri is required' }, { status: 400 });
     if (!file_name) return Response.json({ error: 'file_name is required' }, { status: 400 });
@@ -144,20 +188,54 @@ CRITICAL RULES:
     //    - recognized-type normalization, record-scoped jurisdiction,
     //      license-number token check, record-scoped date grounding + Jan-1
     const validated = [];
+    const debugCandidates = debugMode ? [] : null;
     for (const item of candidates) {
       if (!item || typeof item !== "object") continue;
-      if (!isGrounded(item.source_quote, normalizedText)) continue;
+      const entry = debugMode ? { raw: { ...item }, source_quote: item.source_quote || "" } : null;
+
+      if (!isGrounded(item.source_quote, normalizedText)) {
+        if (entry) { entry.stage = "grounding_failed"; entry.reason = "source_quote is not verbatim in the extracted document text"; debugCandidates.push(entry); }
+        continue;
+      }
+
       const kept = { ...item };
       sanitizeItemDates(kept);
       sanitizeItemStrings(kept);
+      if (entry) entry.postGrounding = { ...kept };
+      const diagCopy = debugMode ? { ...kept } : null;
+
       const ok = validateCredentialItem(kept, { recognized, aliases, needsJurisdiction, stateNames: stateNamesMap, normalizedText });
-      if (!ok) continue;
+      if (!ok) {
+        if (entry) {
+          const diag = diagnoseCredential(diagCopy, { recognized, aliases, needsJurisdiction, stateNames: stateNamesMap, normalizedText });
+          entry.stage = diag.stage;
+          entry.reason = diag.reason;
+          if (diag.dateNotes && diag.dateNotes.length) entry.dateNotes = diag.dateNotes;
+          if (diag.licenseNote) entry.licenseNote = diag.licenseNote;
+          debugCandidates.push(entry);
+        }
+        continue;
+      }
+
+      if (entry) {
+        entry.stage = "passed";
+        entry.reason = "credential survived all gates";
+        entry.validated = { ...ok, source_quote: item.source_quote || "" };
+        debugCandidates.push(entry);
+      }
       // Preserve the grounded source_quote as provenance metadata (the gate
       // strips it from the persisted shape; we return it separately).
       validated.push({ ...ok, source_quote: item.source_quote || "" });
     }
 
     if (!validated.length) {
+      if (debugMode) {
+        return Response.json({
+          error: "No supported credential could be extracted from this document.",
+          credential: null,
+          debug: { candidates: debugCandidates, candidateCount: candidates.length, rawResult: raw, textLength: documentText.length },
+        }, { status: 200 });
+      }
       return Response.json(
         { error: "No supported credential could be extracted from this document." },
         { status: 422 }
@@ -177,6 +255,7 @@ CRITICAL RULES:
       source_quote: source_quote || "",
       source_document_name: file_name || "",
       file_uri,
+      ...(debugMode ? { debug: { candidates: debugCandidates, candidateCount: candidates.length } } : {}),
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
