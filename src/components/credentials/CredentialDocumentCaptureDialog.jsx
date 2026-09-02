@@ -19,7 +19,7 @@ export default function CredentialDocumentCaptureDialog({ open, onOpenChange, pr
   const [debug, setDebug] = useState(false);
   const [debugInfo, setDebugInfo] = useState(null);
 
-  const reset = () => { setError(""); setDragOver(false); setDebugInfo(null); };
+  const reset = () => { setError(""); setDragOver(false); setDebugInfo(null); setDebug(false); };
 
   const handleFile = async (file) => {
     if (!file) return;
@@ -42,6 +42,7 @@ export default function CredentialDocumentCaptureDialog({ open, onOpenChange, pr
         .map(([k]) => k);
 
       // 3. Invoke the capture backend (proposes one credential; no DB writes).
+      //    invoke() returns the raw axios response; the function's JSON lives on .data.
       const res = await base44.functions.invoke("captureCredentialFromDocument", {
         file_uri,
         file_name: name,
@@ -52,19 +53,20 @@ export default function CredentialDocumentCaptureDialog({ open, onOpenChange, pr
         credential_type_aliases: professionModule.credentialTypeAliases,
         debug,
       });
+      const data = res?.data ?? res;
 
-      if (res?.debug) setDebugInfo(res.debug);
+      if (data?.debug) setDebugInfo(data.debug);
 
-      if (!res || !res.credential) {
-        throw new Error(res?.error || "No supported credential could be extracted from this document.");
+      if (!data || !data.credential) {
+        throw new Error(data?.error || "No supported credential could be extracted from this document.");
       }
 
       // 4. Hand the proposed credential + capture metadata to the Credentials
       //    page, which opens the standard Credential form prefilled for review.
-      onCaptured?.(res.credential, {
+      onCaptured?.(data.credential, {
         file_uri,
         file_name: name,
-        source_quote: res.source_quote || "",
+        source_quote: data.source_quote || "",
       });
       reset();
     } catch (e) {
@@ -137,7 +139,7 @@ export default function CredentialDocumentCaptureDialog({ open, onOpenChange, pr
           </label>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange?.(false)} disabled={busy}>Cancel</Button>
+          <Button variant="outline" onClick={() => { reset(); onOpenChange?.(false); }} disabled={busy}>Cancel</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
