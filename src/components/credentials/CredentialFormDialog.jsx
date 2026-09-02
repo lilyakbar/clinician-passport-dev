@@ -28,7 +28,7 @@ const EMPTY = {
 // Reusable Add/Edit Credential dialog. Extracted verbatim from the Credentials
 // page so both Credentials and Compliance share one form. `defaultType`
 // preselects a credential type when opening for a new record (no-op when editing).
-export default function CredentialFormDialog({ open, onOpenChange, editing, professionModule, onSaved, defaultType }) {
+export default function CredentialFormDialog({ open, onOpenChange, editing, professionModule, onSaved, defaultType, prefill, captureMeta }) {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
@@ -43,10 +43,12 @@ export default function CredentialFormDialog({ open, onOpenChange, editing, prof
     if (!open) return;
     if (editing) {
       setForm({ ...editing });
+    } else if (prefill) {
+      setForm({ ...EMPTY, profession: professionModule.key, ...prefill });
     } else {
       setForm({ ...EMPTY, profession: professionModule.key, credential_type: defaultType || "" });
     }
-  }, [open, editing, professionModule.key, defaultType]);
+  }, [open, editing, professionModule.key, defaultType, prefill]);
 
   const setField = (n, v) => setForm((f) => ({ ...f, [n]: v }));
 
@@ -58,8 +60,28 @@ export default function CredentialFormDialog({ open, onOpenChange, editing, prof
       const days = daysUntil(form.expiration_date);
       const status = form.status || (days === null ? "active" : days < 0 ? "expired" : days <= 60 ? "expiring" : "active");
       const payload = { ...form, status };
-      if (editing) { await base44.entities.Credential.update(editing.id, payload); toast({ title: "Credential updated" }); }
-      else { await base44.entities.Credential.create(payload); toast({ title: "Credential added" }); }
+      if (captureMeta && !editing) {
+        payload.source = "document_capture";
+        if (captureMeta.file_name) payload.source_document_name = captureMeta.file_name;
+      }
+      if (editing) {
+        await base44.entities.Credential.update(editing.id, payload);
+        toast({ title: "Credential updated" });
+      } else {
+        const created = await base44.entities.Credential.create(payload);
+        if (captureMeta?.file_uri && created?.id) {
+          try {
+            await base44.entities.Document.create({
+              title: captureMeta.file_name || "Uploaded document",
+              category: "Credential",
+              file_url: captureMeta.file_uri,
+              linked_entity_type: "Credential",
+              linked_entity_id: created.id,
+            });
+          } catch { /* document link is best-effort */ }
+        }
+        toast({ title: "Credential added" });
+      }
       onOpenChange(false);
       onSaved?.();
     } catch (e) { toast({ title: "Error", description: e.message, variant: "destructive" }); }

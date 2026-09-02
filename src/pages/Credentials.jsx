@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import PageHeader from "@/components/PageHeader";
-import { Plus, Pencil, Trash2, Loader2, Award, AlertTriangle, CheckCircle2, XCircle, ShieldCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Award, AlertTriangle, CheckCircle2, XCircle, ShieldCheck, FileUp } from "lucide-react";
 import { format, parseISO, isValid, differenceInDays } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { useProfession } from "@/professions/ProfessionContext";
 import CredentialDocuments from "@/components/credentials/CredentialDocuments";
 import CredentialFormDialog from "@/components/credentials/CredentialFormDialog";
+import CredentialDocumentCaptureDialog from "@/components/credentials/CredentialDocumentCaptureDialog";
 import ImportedBadge from "@/components/ImportedBadge";
 
 function fmt(d) {
@@ -26,6 +27,9 @@ export default function Credentials() {
   const [items, setItems] = useState(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [prefill, setPrefill] = useState(null);
+  const [captureMeta, setCaptureMeta] = useState(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -37,8 +41,16 @@ export default function Credentials() {
   };
   useEffect(() => { load(); }, [professionModule.key]);
 
-  const openNew = () => { setEditing(null); setOpen(true); };
-  const openEdit = (it) => { setEditing(it); setOpen(true); };
+  const openNew = () => { setEditing(null); setPrefill(null); setCaptureMeta(null); setOpen(true); };
+  const openEdit = (it) => { setEditing(it); setPrefill(null); setCaptureMeta(null); setOpen(true); };
+  const openCapture = () => { setCaptureOpen(true); };
+  const onCaptured = (credential, meta) => {
+    setPrefill(credential);
+    setCaptureMeta(meta);
+    setEditing(null);
+    setCaptureOpen(false);
+    setOpen(true);
+  };
 
   const remove = async (it) => {
     await base44.entities.Credential.delete(it.id);
@@ -71,7 +83,10 @@ export default function Credentials() {
   return (
     <div className="space-y-6">
       <PageHeader title="Licenses & Credentials" description={`Track licenses, certifications, and registrations for ${professionModule.label.toLowerCase()}.`}>
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Add Credential</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={openCapture}><FileUp className="h-4 w-4 mr-1" /> Add from document</Button>
+          <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> Add Credential</Button>
+        </div>
       </PageHeader>
 
       {summary && (
@@ -145,6 +160,14 @@ export default function Credentials() {
         editing={editing}
         professionModule={professionModule}
         onSaved={load}
+        prefill={prefill}
+        captureMeta={captureMeta}
+      />
+      <CredentialDocumentCaptureDialog
+        open={captureOpen}
+        onOpenChange={setCaptureOpen}
+        professionModule={professionModule}
+        onCaptured={onCaptured}
       />
     </div>
   );
