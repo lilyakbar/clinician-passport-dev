@@ -28,6 +28,11 @@ export default function CaptureDiagnostics({ debug }) {
               <span className="font-medium">post-grounding:</span> {JSON.stringify(c.postGrounding)}
             </div>
           )}
+          {c.validated && (
+            <div className="text-foreground">
+              <span className="font-medium">validated:</span> {JSON.stringify(c.validated)}
+            </div>
+          )}
           {c.dateNotes?.length > 0 && (
             <div className="space-y-0.5">
               {c.dateNotes.map((n, j) => <div key={j} className="text-warning">{n}</div>)}
