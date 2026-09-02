@@ -61,13 +61,14 @@ export default function CredentialDocumentCaptureDialog({ open, onOpenChange, pr
         throw new Error(data?.error || "No supported credential could be extracted from this document.");
       }
 
-      // 4. Hand the proposed credential + capture metadata to the Credentials
-      //    page, which opens the standard Credential form prefilled for review.
+      // 4. Hand the proposed credential + capture metadata (and debug payload,
+      //    when enabled) to the Credentials page, which opens the standard
+      //    Credential form prefilled for review.
       onCaptured?.(data.credential, {
         file_uri,
         file_name: name,
         source_quote: data.source_quote || "",
-      });
+      }, data.debug || null);
       reset();
     } catch (e) {
       setError(e?.message || "Something went wrong while reading the document.");

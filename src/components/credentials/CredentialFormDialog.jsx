@@ -13,6 +13,7 @@ import {
 import { Loader2, ShieldCheck } from "lucide-react";
 import { parseISO, isValid, differenceInDays } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
+import CaptureDiagnostics from "@/components/credentials/CaptureDiagnostics";
 
 function daysUntil(d) {
   if (!d) return null;
@@ -28,7 +29,7 @@ const EMPTY = {
 // Reusable Add/Edit Credential dialog. Extracted verbatim from the Credentials
 // page so both Credentials and Compliance share one form. `defaultType`
 // preselects a credential type when opening for a new record (no-op when editing).
-export default function CredentialFormDialog({ open, onOpenChange, editing, professionModule, onSaved, defaultType, prefill, captureMeta }) {
+export default function CredentialFormDialog({ open, onOpenChange, editing, professionModule, onSaved, defaultType, prefill, captureMeta, captureDebug }) {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
@@ -92,6 +93,12 @@ export default function CredentialFormDialog({ open, onOpenChange, editing, prof
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{editing ? "Edit Credential" : "Add Credential"}</DialogTitle></DialogHeader>
+        {captureDebug && (
+          <div className="space-y-1.5">
+            <div className="text-xs font-medium text-muted-foreground">Capture diagnostics (debug mode) — inspection only.</div>
+            <CaptureDiagnostics debug={captureDebug} />
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4 py-2">
           <div className="col-span-2 space-y-1.5">
             <Label>Credential Name *</Label>

@@ -30,6 +30,7 @@ export default function Credentials() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [prefill, setPrefill] = useState(null);
   const [captureMeta, setCaptureMeta] = useState(null);
+  const [captureDebug, setCaptureDebug] = useState(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -41,12 +42,13 @@ export default function Credentials() {
   };
   useEffect(() => { load(); }, [professionModule.key]);
 
-  const openNew = () => { setEditing(null); setPrefill(null); setCaptureMeta(null); setOpen(true); };
-  const openEdit = (it) => { setEditing(it); setPrefill(null); setCaptureMeta(null); setOpen(true); };
+  const openNew = () => { setEditing(null); setPrefill(null); setCaptureMeta(null); setCaptureDebug(null); setOpen(true); };
+  const openEdit = (it) => { setEditing(it); setPrefill(null); setCaptureMeta(null); setCaptureDebug(null); setOpen(true); };
   const openCapture = () => { setCaptureOpen(true); };
-  const onCaptured = (credential, meta) => {
+  const onCaptured = (credential, meta, debugInfo) => {
     setPrefill(credential);
     setCaptureMeta(meta);
+    setCaptureDebug(debugInfo);
     setEditing(null);
     setCaptureOpen(false);
     setOpen(true);
@@ -156,12 +158,13 @@ export default function Credentials() {
 
       <CredentialFormDialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(o) => { setOpen(o); if (!o) setCaptureDebug(null); }}
         editing={editing}
         professionModule={professionModule}
         onSaved={load}
         prefill={prefill}
         captureMeta={captureMeta}
+        captureDebug={captureDebug}
       />
       <CredentialDocumentCaptureDialog
         open={captureOpen}
